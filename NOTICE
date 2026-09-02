@@ -1,0 +1,28 @@
+@rdlabo/capacitor-local-llm
+
+This project is an independently maintained fork of Ionic's
+@capacitor/local-llm:
+https://github.com/ionic-team/capacitor-local-llm
+
+Fork base: version 1.0.0, commit 5bceb559ed19382efc71df2f918d290ca419d282.
+The upstream project is licensed under the MIT License. Its copyright notice
+and license text are preserved in LICENSE.
+
+The fork adds explicit chat and generation lifecycles, native streaming and
+cancellation, detailed availability and stable error codes, bounded history,
+download progress events, tests, and updated platform requirements.
+
+This fork is not affiliated with or supported by Ionic.
+
+Android fallback runtime
+------------------------
+
+The optional Android fallback integration depends on Google LiteRT-LM:
+https://github.com/google-ai-edge/LiteRT-LM
+
+LiteRT-LM is licensed under the Apache License 2.0. The Gradle artifact
+`com.google.ai.edge.litertlm:litertlm-android` contains its LICENSE and
+THIRD_PARTY_NOTICE.txt. Applications that distribute the resulting Android
+binary must preserve the notices required by that runtime and its transitive
+dependencies. Model weights are separate works with their own licenses and
+terms; this package does not distribute model weights.

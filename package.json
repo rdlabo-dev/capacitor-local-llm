@@ -1,6 +1,6 @@
 {
-  "name": "@capacitor/local-llm",
-  "version": "1.0.0",
+  "name": "@rdlabo/capacitor-local-llm",
+  "version": "2.0.0",
   "description": "A Capacitor plugin for running on-device LLMs, with support for text generation, image generation, and session management on iOS and Android.",
   "main": "dist/plugin.cjs.js",
   "module": "dist/esm/index.js",
@@ -11,18 +11,22 @@
     "android/build.gradle",
     "dist/",
     "ios/Sources",
-    "ios/Tests",
+    "NOTICE",
     "Package.swift",
     "CapacitorLocalLlm.podspec"
   ],
-  "author": "Ionic <hi@ionicframework.com>",
+  "author": "Masahiko Sakakibara <sakakibara@rdlabo.jp>",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ionic-team/capacitor-local-llm.git"
+    "url": "git+https://github.com/rdlabo-dev/capacitor-local-llm.git"
   },
   "bugs": {
-    "url": "https://github.com/ionic-team/capacitor-local-llm/issues"
+    "url": "https://github.com/rdlabo-dev/capacitor-local-llm/issues"
+  },
+  "homepage": "https://github.com/rdlabo-dev/capacitor-local-llm#readme",
+  "publishConfig": {
+    "access": "public"
   },
   "keywords": [
     "capacitor",
@@ -38,11 +42,14 @@
   ],
   "scripts": {
     "verify": "npm run verify:ios && npm run verify:android && npm run verify:web",
-    "verify:ios": "xcodebuild -scheme CapacitorLocalLlm -destination generic/platform=iOS",
+    "verify:ios": "swift build --build-tests --sdk \"$(xcrun --sdk iphoneos --show-sdk-path)\" --triple arm64-apple-ios18.4 && npm run test:ios",
     "verify:android": "cd android && ./gradlew clean build test && cd ..",
     "verify:web": "npm run build",
-    "lint": "npm run eslint && npm run prettier -- --check && npm run swiftlint -- lint",
-    "fmt": "npm run eslint -- --fix && npm run prettier -- --write && npm run swiftlint -- --fix --format",
+    "test": "npm run test:types",
+    "test:ios": "xcodebuild test -scheme CapacitorLocalLlm -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=latest'",
+    "test:types": "tsc -p tests/tsconfig.json --noEmit",
+    "lint": "npm run eslint && npm run prettier -- --check && npm run swiftlint -- lint --no-cache",
+    "fmt": "npm run eslint -- --fix && npm run prettier -- --write && npm run swiftlint -- --fix --format --no-cache",
     "eslint": "eslint . --ext ts",
     "prettier": "prettier \"**/*.{css,html,ts,js,java}\" --plugin=prettier-plugin-java",
     "swiftlint": "node-swiftlint",
@@ -78,7 +85,6 @@
     "@capacitor/core": ">=8.0.0"
   },
   "prettier": "@ionic/prettier-config",
-  "swiftlint": "@ionic/swiftlint-config",
   "eslintConfig": {
     "extends": "@ionic/eslint-config/recommended"
   },

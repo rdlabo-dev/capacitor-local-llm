@@ -11,13 +11,13 @@ import {
   IonTitle,
   IonToolbar,
 } from '@ionic/react';
-import { LocalLLM } from "@capacitor/local-llm";
+import { LocalLLM, type Availability } from '@rdlabo/capacitor-local-llm';
 
 import './Tab2.css';
 
 const formatError = (err: unknown): string => {
   const message = (err as Error).message ?? 'Unknown error';
-  const code = (err as any).code;
+  const code = (err as { code?: string }).code;
   return code ? `[${code}] ${message}` : message;
 };
 
@@ -28,18 +28,25 @@ interface SelectedImage {
   type: string;
 }
 
-const statusColor = (status: string): string => {
+const statusColor = (status: Availability): string => {
   switch (status) {
-    case 'available': return 'success';
-    case 'unavailable': return 'danger';
-    case 'notready':
-    case 'downloadable': return 'warning';
-    default: return 'medium';
+    case 'available':
+      return 'success';
+    case 'unavailable':
+    case 'device-not-eligible':
+      return 'danger';
+    case 'not-ready':
+    case 'downloading':
+    case 'downloadable':
+    case 'not-enabled':
+      return 'warning';
+    default:
+      return 'medium';
   }
 };
 
 const Tab2: React.FC = () => {
-  const [systemStatus, setSystemStatus] = useState<string | null>(null);
+  const [systemStatus, setSystemStatus] = useState<Availability | null>(null);
   const [prompt, setPrompt] = useState<string>("Can you create a futuristic image of a model wearing smart glasses?");
   const [selectedImages, setSelectedImages] = useState<SelectedImage[]>([]);
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
@@ -49,9 +56,9 @@ const Tab2: React.FC = () => {
 
   const onStatusBtn = async () => {
     try {
-      const res = await LocalLLM.systemAvailability();
-      setSystemStatus(res.status);
-      if (res.status === 'downloadable') {
+      const { status } = await LocalLLM.getAvailability();
+      setSystemStatus(status);
+      if (status === 'downloadable') {
         onDownloadingModel();
       }
     } catch (err) {
@@ -98,14 +105,14 @@ const Tab2: React.FC = () => {
     try {
       interval = setInterval(async () => {
         try {
-          const res = await LocalLLM.systemAvailability();
-          setSystemStatus(res.status);
+          const { status } = await LocalLLM.getAvailability();
+          setSystemStatus(status);
         } catch (err) {
           if (interval) clearInterval(interval);
           setError(formatError(err));
         }
       }, 1000);
-      await LocalLLM.download();
+      await LocalLLM.downloadModel();
       clearInterval(interval);
     } catch (err) {
       if (interval) clearInterval(interval);

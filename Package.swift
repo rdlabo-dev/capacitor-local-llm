@@ -3,10 +3,10 @@ import PackageDescription
 
 let package = Package(
     name: "CapacitorLocalLlm",
-    platforms: [.iOS(.v15)],
+    platforms: [.iOS("18.4")],
     products: [
         .library(
-            name: "CapacitorLocalLlm",
+            name: "RdlaboCapacitorLocalLlm",
             targets: ["LocalLLMPlugin"])
     ],
     dependencies: [

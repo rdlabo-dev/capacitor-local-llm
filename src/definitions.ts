@@ -1,372 +1,669 @@
 import type { PluginListenerHandle } from '@capacitor/core';
 
 /**
- * The main plugin interface for interacting with on-device LLMs.
+ * The semantic availability of the on-device text model.
+ *
+ * @since 2.0.0
+ * @example
+ * const status: Availability = 'available';
+ */
+export type Availability =
+  | 'available'
+  | 'device-not-eligible'
+  | 'not-enabled'
+  | 'downloadable'
+  | 'downloading'
+  | 'not-ready'
+  | 'unavailable';
+
+/**
+ * @deprecated Use {@link Availability}.
  *
  * @since 1.0.0
- * @platform ios
- * @platform android
+ * @example
+ * const status: LLMAvailability = 'available';
  */
-export interface LocalLLMPlugin {
-  /**
-   * Checks the availability status of the on-device LLM.
-   *
-   * Use this method to determine if the LLM is ready to use, needs to be downloaded,
-   * or is unavailable on the device.
-   *
-   * @since 1.0.0
-   * @example
-   * ```typescript
-   * const { status } = await LocalLLM.systemAvailability();
-   * ```
-   * @returns A promise that resolves with the system availability status
-   */
-  systemAvailability(): Promise<SystemAvailabilityResponse>;
+export type LLMAvailability = 'available' | 'unavailable' | 'notready' | 'downloadable';
 
+/**
+ * Result returned by availability checks.
+ *
+ * @since 2.0.0
+ * @example
+ * const { status } = await LocalLLM.getAvailability();
+ */
+export interface GetAvailabilityResult {
   /**
-   * Downloads the on-device LLM model.
+   * Current text-model availability.
    *
-   * This method initiates the download of the LLM model when it's not already
-   * present on the device. Only available on Android.
-   *
-   * @since 1.0.0
-   * @platform android
+   * @since 2.0.0
    * @example
-   * ```typescript
-   * await LocalLLM.download();
-   * ```
-   * @returns A promise that resolves when the download completes
+   * result.status === 'available';
    */
-  download(): Promise<void>;
-
-  /**
-   * Sends a prompt to the on-device LLM and receives a response.
-   *
-   * Use this method to interact with the LLM. You can optionally provide a sessionId
-   * to maintain conversation context across multiple prompts.
-   *
-   * @since 1.0.0
-   * @example
-   * ```typescript
-   * const response = await LocalLLM.prompt({ prompt: 'What is the capital of France?' });
-   * ```
-   * @param options - The prompt options including the text prompt and optional configuration
-   * @returns A promise that resolves with the LLM's text response
-   */
-  prompt(options: PromptOptions): Promise<PromptResponse>;
-
-  /**
-   * Ends an active LLM session.
-   *
-   * Use this method to clean up resources when you're done with a conversation session.
-   * This is important for managing memory and preventing resource leaks.
-   *
-   * @since 1.0.0
-   * @example
-   * ```typescript
-   * await LocalLLM.endSession({ sessionId: 'session-123' });
-   * ```
-   * @param options - The options containing the sessionId to end
-   * @returns A promise that resolves when the session is ended
-   */
-  endSession(options: EndSessionOptions): Promise<void>;
-
-  /**
-   * Generates images from a text prompt using the on-device LLM.
-   *
-   * Use this method to create images based on text descriptions. Optionally provide
-   * reference images to influence the generation. The generated images are returned
-   * as base64-encoded PNG strings in an array.
-   *
-   * @since 1.0.0
-   * @platform ios
-   * @example
-   * ```typescript
-   * // Generate 2 variations from a text prompt
-   * const result = await LocalLLM.generateImage({ prompt: 'A sunset over mountains', count: 2 });
-   * console.log(result.pngBase64Images.length); // 2
-   *
-   * // Generate with reference image
-   * const withRef = await LocalLLM.generateImage({
-   *   prompt: 'A modern version of this painting',
-   *   promptImages: ['data:image/png;base64,iVBORw0KGg...']
-   * });
-   * ```
-   * @param options - The image generation options including the prompt, optional reference images, and count
-   * @returns A promise that resolves with an array of generated image data
-   */
-  generateImage(options: GenerateImageOptions): Promise<GenerateImageResponse>;
-
-  /**
-   * Warms up the on-device LLM for faster initial responses.
-   *
-   * Use this method to pre-initialize the LLM with a prompt prefix, reducing latency
-   * for the first actual prompt. This is useful when you know in advance the type of
-   * prompts you'll be sending.
-   *
-   * @since 1.0.0
-   * @example
-   * ```typescript
-   * await LocalLLM.warmup({ promptPrefix: 'You are a helpful assistant.' });
-   * ```
-   * @param options - The warmup options including the prompt prefix
-   * @returns A promise that resolves when warmup is complete
-   */
-  warmup(options: WarmupOptions): Promise<void>;
-
-  /**
-   * Registers a listener that is called whenever the on-device LLM availability status changes.
-   *
-   * The listener is invoked with the new availability status each time it changes. Polling
-   * begins when the first listener is added and stops when all listeners are removed via
-   * `removeAllListeners()`.
-   *
-   * @since 1.0.0
-   * @example
-   * ```typescript
-   * const handle = await LocalLLM.addListener('systemAvailabilityChange', (status) => {
-   *   console.log('LLM availability changed:', status);
-   * });
-   *
-   * // Later, to stop listening:
-   * await handle.remove();
-   * ```
-   * @param eventName - The event name to listen for
-   * @param listenerFunc - The callback invoked with the new availability status on each change
-   * @returns A handle that can be used to remove this specific listener
-   */
-  addListener(
-    eventName: 'systemAvailabilityChange',
-    listenerFunc: SystemAvailabilityChangeListener,
-  ): Promise<PluginListenerHandle>;
-
-  removeAllListeners(): Promise<void>;
+  status: Availability;
 }
 
 /**
- * Callback invoked when the on-device LLM availability status changes.
+ * @deprecated Use {@link GetAvailabilityResult}.
  *
  * @since 1.0.0
- * @param response - The response containing the new availability status of the LLM
- */
-export type SystemAvailabilityChangeListener = (response: SystemAvailabilityResponse) => void;
-
-/**
- * Configuration options for LLM inference behavior.
- *
- * @since 1.0.0
- */
-export interface LLMOptions {
-  /**
-   * Controls randomness in the model's output.
-   *
-   * Higher values (e.g., 0.8) make output more random, while lower values
-   * (e.g., 0.2) make it more focused and deterministic.
-   *
-   * @since 1.0.0
-   */
-  temperature?: number;
-
-  /**
-   * The maximum number of tokens to generate in the response.
-   *
-   * On Android, this must be between 1 and 256.
-   *
-   * @since 1.0.0
-   */
-  maximumOutputTokens?: number;
-}
-
-/**
- * Options for sending a prompt to the LLM.
- *
- * @since 1.0.0
- */
-export interface PromptOptions {
-  /**
-   * Optional session identifier for maintaining conversation context.
-   *
-   * Provide the same sessionId across multiple prompts to maintain context.
-   * If not provided, each prompt is treated as independent.
-   *
-   * @since 1.0.0
-   */
-  sessionId?: string;
-
-  /**
-   * System-level instructions to guide the LLM's behavior.
-   *
-   * Use this to set the role, tone, or constraints for the LLM's responses.
-   *
-   * @since 1.0.0
-   * @example 'You are a helpful assistant that provides concise answers.'
-   */
-  instructions?: string;
-
-  /**
-   * Configuration options for controlling LLM inference behavior.
-   *
-   * @since 1.0.0
-   */
-  options?: LLMOptions;
-
-  /**
-   * The text prompt to send to the LLM.
-   *
-   * @since 1.0.0
-   */
-  prompt: string;
-}
-
-/**
- * Response from the LLM after processing a prompt.
- *
- * @since 1.0.0
- */
-export interface PromptResponse {
-  /**
-   * The text response generated by the LLM.
-   *
-   * @since 1.0.0
-   */
-  text: string;
-}
-
-/**
- * Response containing the system availability status of the on-device LLM.
- *
- * @since 1.0.0
+ * @example
+ * const response: SystemAvailabilityResponse = await LocalLLM.systemAvailability();
  */
 export interface SystemAvailabilityResponse {
   /**
-   * The current availability status of the LLM.
+   * Legacy availability value. Detailed states are folded into the original four-value contract.
    *
    * @since 1.0.0
+   * @example
+   * response.status === 'notready';
    */
   status: LLMAvailability;
 }
 
 /**
- * Options for ending an active LLM session.
+ * Cross-platform text generation controls. Unsupported values are rejected, not clamped.
+ *
+ * @since 2.0.0
+ * @example
+ * const options: GenerationOptions = { temperature: 0.2, maxOutputTokens: 256 };
+ */
+export interface GenerationOptions {
+  /**
+   * Sampling temperature.
+   *
+   * @since 2.0.0
+   * @example
+   * options.temperature = 0.2;
+   */
+  temperature?: number;
+  /**
+   * Samples from the k most likely tokens.
+   *
+   * @since 2.0.0
+   * @example
+   * options.topK = 16;
+   */
+  topK?: number;
+  /**
+   * Maximum generated tokens.
+   *
+   * @since 2.0.0
+   * @example
+   * options.maxOutputTokens = 256;
+   */
+  maxOutputTokens?: number;
+}
+
+/**
+ * Configures an opt-in Android LiteRT-LM fallback used when Gemini Nano is unavailable.
+ * The model must already exist as an app asset or a readable app-managed file. iOS and Web reject this API.
+ *
+ * @since 2.0.0
+ * @example
+ * await LocalLLM.configureFallbackModel({ path: '/android_asset/gemma.litertlm' });
+ */
+export interface ConfigureFallbackModelOptions {
+  /**
+   * `.litertlm` model path. Use `/android_asset/...` for bundled assets or an absolute app-managed file path.
+   *
+   * @since 2.0.0
+   * @example
+   * options.path = '/android_asset/gemma.litertlm';
+   */
+  path: string;
+  /**
+   * Combined context capacity passed to LiteRT-LM. Defaults to 4096.
+   *
+   * @since 2.0.0
+   * @example
+   * options.maxTokens = 4096;
+   */
+  maxTokens?: number;
+  /**
+   * Maximum images accepted by one generation for a vision-capable model. Defaults to 1.
+   *
+   * @since 2.0.0
+   * @example
+   * options.maxImages = 1;
+   */
+  maxImages?: number;
+  /**
+   * Initializes LiteRT-LM's vision pipeline. Defaults to `true`; set to `false` only for a
+   * text-only model.
+   *
+   * @since 2.0.0
+   * @example
+   * options.supportsImages = true;
+   */
+  supportsImages?: boolean;
+}
+
+/**
+ * @deprecated Use {@link GenerationOptions}.
  *
  * @since 1.0.0
+ * @example
+ * const options: LLMOptions = { temperature: 0.2, maximumOutputTokens: 256 };
+ */
+export interface LLMOptions {
+  /**
+   * Sampling temperature.
+   *
+   * @since 1.0.0
+   * @example
+   * options.temperature = 0.2;
+   */
+  temperature?: number;
+  /**
+   * Maximum generated tokens.
+   *
+   * @since 1.0.0
+   * @example
+   * options.maximumOutputTokens = 256;
+   */
+  maximumOutputTokens?: number;
+}
+
+/**
+ * Chat history limits. Both native implementations retain instructions and discard oldest whole turns.
+ *
+ * @since 2.0.0
+ * @example
+ * const history: ChatHistoryOptions = { maxMessages: 12, maxCharacters: 8000 };
+ */
+export interface ChatHistoryOptions {
+  /**
+   * Maximum retained messages. Defaults to 20.
+   *
+   * @since 2.0.0
+   * @example
+   * history.maxMessages = 12;
+   */
+  maxMessages?: number;
+  /**
+   * Maximum retained message characters. Defaults to 12000.
+   *
+   * @since 2.0.0
+   * @example
+   * history.maxCharacters = 8000;
+   */
+  maxCharacters?: number;
+}
+
+/**
+ * Options for creating an owned chat.
+ *
+ * @since 2.0.0
+ * @example
+ * const chat = await LocalLLM.createChat({ instructions: 'Answer briefly.' });
+ */
+export interface CreateChatOptions {
+  /**
+   * Persistent system instructions for this chat.
+   *
+   * @since 2.0.0
+   * @example
+   * options.instructions = 'Answer briefly.';
+   */
+  instructions?: string;
+  /**
+   * History limits applied by both native implementations.
+   *
+   * @since 2.0.0
+   * @example
+   * options.history = { maxMessages: 12 };
+   */
+  history?: ChatHistoryOptions;
+}
+
+/**
+ * Result containing the plugin-owned chat identifier.
+ *
+ * @since 2.0.0
+ * @example
+ * const { id } = await LocalLLM.createChat();
+ */
+export interface CreateChatResult {
+  /**
+   * Identifier required by generation and deletion calls.
+   *
+   * @since 2.0.0
+   * @example
+   * await LocalLLM.generateText({ chatId: chat.id, prompt: 'Hi' });
+   */
+  id: string;
+}
+
+/**
+ * Options for deleting a chat.
+ *
+ * @since 2.0.0
+ * @example
+ * await LocalLLM.deleteChat({ id: chat.id });
+ */
+export interface DeleteChatOptions {
+  /**
+   * Chat identifier returned by `createChat()`.
+   *
+   * @since 2.0.0
+   * @example
+   * options.id = chat.id;
+   */
+  id: string;
+}
+
+/**
+ * Options for a non-streaming generation.
+ *
+ * @since 2.0.0
+ * @example
+ * await LocalLLM.generateText({ chatId, prompt: 'Hello' });
+ */
+export interface GenerateTextOptions {
+  /**
+   * Chat identifier returned by `createChat()`.
+   *
+   * @since 2.0.0
+   * @example
+   * options.chatId = chat.id;
+   */
+  chatId: string;
+  /**
+   * User prompt.
+   *
+   * @since 2.0.0
+   * @example
+   * options.prompt = 'Hello';
+   */
+  prompt: string;
+  /**
+   * Local image paths supplied to a vision-capable Android LiteRT-LM fallback model.
+   * Absolute paths, `file://` URLs, and readable `content://` URIs are accepted. iOS, Web,
+   * Gemini Nano, and text-only fallback models reject image input with `LOCAL_LLM_UNSUPPORTED`.
+   *
+   * @since 2.0.0
+   * @example
+   * options.imagePaths = ['file:///data/user/0/com.example.app/files/photo.jpg'];
+   */
+  imagePaths?: string[];
+  /**
+   * Optional generation controls.
+   *
+   * @since 2.0.0
+   * @example
+   * options.options = { temperature: 0.2 };
+   */
+  options?: GenerationOptions;
+}
+
+/**
+ * Result of a text generation.
+ *
+ * @since 2.0.0
+ * @example
+ * const { text, generationId } = await LocalLLM.generateText({ chatId, prompt: 'Hi' });
+ */
+export interface GenerateTextResult {
+  /**
+   * Complete generated text.
+   *
+   * @since 2.0.0
+   * @example
+   * console.log(result.text);
+   */
+  text: string;
+  /**
+   * Identifier that can correlate diagnostics with a generation.
+   *
+   * @since 2.0.0
+   * @example
+   * await LocalLLM.cancelGeneration({ chatId, generationId: result.generationId });
+   */
+  generationId: string;
+}
+
+/**
+ * Options for native streaming generation.
+ *
+ * @since 2.0.0
+ * @example
+ * await LocalLLM.streamText({ chatId, prompt: 'Hello' });
+ */
+export type StreamTextOptions = GenerateTextOptions;
+
+/**
+ * Final result of a native streaming generation.
+ *
+ * @since 2.0.0
+ * @example
+ * const result: StreamTextResult = await LocalLLM.streamText({ chatId, prompt: 'Hi' });
+ */
+export type StreamTextResult = GenerateTextResult;
+
+/**
+ * Options for cancelling an in-flight generation.
+ *
+ * @since 2.0.0
+ * @example
+ * await LocalLLM.cancelGeneration({ chatId, generationId });
+ */
+export interface CancelGenerationOptions {
+  /**
+   * Chat that owns the generation.
+   *
+   * @since 2.0.0
+   * @example
+   * options.chatId = chat.id;
+   */
+  chatId: string;
+  /**
+   * Optional generation identifier; a mismatch is treated as not found.
+   *
+   * @since 2.0.0
+   * @example
+   * options.generationId = result.generationId;
+   */
+  generationId?: string;
+}
+
+/**
+ * Incremental text emitted by `streamText()`.
+ *
+ * @since 2.0.0
+ * @example
+ * LocalLLM.addListener('textChunk', (event: TextChunkEvent) => console.log(event.text));
+ */
+export interface TextChunkEvent {
+  /**
+   * Chat that owns the generation.
+   *
+   * @since 2.0.0
+   * @example
+   * event.chatId === chat.id;
+   */
+  chatId: string;
+  /**
+   * Identifier of this generation.
+   *
+   * @since 2.0.0
+   * @example
+   * event.generationId === result.generationId;
+   */
+  generationId: string;
+  /**
+   * Newly generated text only, not the accumulated snapshot.
+   *
+   * @since 2.0.0
+   * @example
+   * process.stdout.write(event.text);
+   */
+  text: string;
+}
+
+/**
+ * Model download progress. Intermediate Android events omit `progress` because ML Kit has no total byte count.
+ *
+ * @since 2.0.0
+ * @example
+ * LocalLLM.addListener('downloadProgress', (event: DownloadProgressEvent) => console.log(event.progress));
+ */
+export interface DownloadProgressEvent {
+  /**
+   * Known normalized progress: 0 at start and 1 at completion.
+   *
+   * @since 2.0.0
+   * @example
+   * event.progress === 1;
+   */
+  progress?: number;
+  /**
+   * Bytes downloaded so far when supplied by ML Kit.
+   *
+   * @since 2.0.0
+   * @example
+   * console.log(event.downloadedBytes);
+   */
+  downloadedBytes?: number;
+  /**
+   * Total bytes, when a platform SDK supplies it. Currently omitted on Android.
+   *
+   * @since 2.0.0
+   * @example
+   * console.log(event.totalBytes);
+   */
+  totalBytes?: number;
+}
+
+/**
+ * Listener for availability changes.
+ *
+ * @since 2.0.0
+ * @example
+ * const listener: AvailabilityChangeListener = (event) => console.log(event.status);
+ */
+export type AvailabilityChangeListener = (event: GetAvailabilityResult) => void;
+
+/**
+ * @deprecated Use {@link AvailabilityChangeListener}.
+ *
+ * @since 1.0.0
+ * @example
+ * const listener: SystemAvailabilityChangeListener = (event) => console.log(event.status);
+ */
+export type SystemAvailabilityChangeListener = (event: SystemAvailabilityResponse) => void;
+
+/**
+ * Listener for model download progress.
+ *
+ * @since 2.0.0
+ * @example
+ * const listener: DownloadProgressListener = (event) => console.log(event.progress);
+ */
+export type DownloadProgressListener = (event: DownloadProgressEvent) => void;
+
+/**
+ * Listener for native generation chunks.
+ *
+ * @since 2.0.0
+ * @example
+ * const listener: TextChunkListener = (event) => console.log(event.text);
+ */
+export type TextChunkListener = (event: TextChunkEvent) => void;
+
+/**
+ * Legacy prompt options.
+ *
+ * @since 1.0.0
+ * @example
+ * await LocalLLM.prompt({ prompt: 'Hello', instructions: 'Be brief.' });
+ */
+export interface PromptOptions {
+  /**
+   * Optional legacy session identifier.
+   *
+   * @since 1.0.0
+   * @example
+   * options.sessionId = 'session-1';
+   */
+  sessionId?: string;
+  /**
+   * Instructions used when the legacy session is first created.
+   *
+   * @since 1.0.0
+   * @example
+   * options.instructions = 'Be brief.';
+   */
+  instructions?: string;
+  /**
+   * Legacy generation controls.
+   *
+   * @since 1.0.0
+   * @example
+   * options.options = { temperature: 0.2 };
+   */
+  options?: LLMOptions;
+  /**
+   * User prompt.
+   *
+   * @since 1.0.0
+   * @example
+   * options.prompt = 'Hello';
+   */
+  prompt: string;
+}
+
+/**
+ * Legacy prompt response.
+ *
+ * @since 1.0.0
+ * @example
+ * const { text } = await LocalLLM.prompt({ prompt: 'Hello' });
+ */
+export interface PromptResponse {
+  /**
+   * Complete generated text.
+   *
+   * @since 1.0.0
+   * @example
+   * console.log(response.text);
+   */
+  text: string;
+}
+
+/**
+ * Legacy session deletion options.
+ *
+ * @since 1.0.0
+ * @example
+ * await LocalLLM.endSession({ sessionId: 'session-1' });
  */
 export interface EndSessionOptions {
   /**
-   * The identifier of the session to end.
-   *
-   * This should match the sessionId used in previous prompt() calls.
+   * Legacy session identifier.
    *
    * @since 1.0.0
+   * @example
+   * options.sessionId = 'session-1';
    */
   sessionId: string;
 }
 
 /**
- * Availability status of the on-device LLM.
+ * Image generation options. Image generation is available only on iOS 18.4+.
  *
  * @since 1.0.0
- */
-export type LLMAvailability = 'available' | 'unavailable' | 'notready' | 'downloadable';
-
-/**
- * Options for generating an image from a text prompt.
- *
- * @since 1.0.0
+ * @example
+ * await LocalLLM.generateImage({ prompt: 'A mountain lake at sunrise' });
  */
 export interface GenerateImageOptions {
   /**
-   * The text prompt describing the image to generate.
+   * Image description.
    *
    * @since 1.0.0
+   * @example
+   * options.prompt = 'A mountain lake at sunrise';
    */
   prompt: string;
-
   /**
-   * Optional array of reference images to influence the generated output.
-   *
-   * Provide base64-encoded image strings (with or without data URI prefix) that
-   * will be used as visual context or inspiration for the image generation.
-   * This allows you to combine text and image concepts for more controlled output.
+   * Optional base64 reference images.
    *
    * @since 1.0.0
-   * @example ['data:image/png;base64,iVBORw0KGg...', '/9j/4AAQSkZJRg...']
+   * @example
+   * options.promptImages = [base64Image];
    */
   promptImages?: string[];
-
   /**
-   * The number of image variations to generate.
-   *
-   * Defaults to 1 if not specified.
+   * Number of variations. Defaults to 1.
    *
    * @since 1.0.0
-   * @default 1
+   * @example
+   * options.count = 2;
    */
   count?: number;
 }
 
 /**
- * Response containing the generated image data.
+ * Image generation result.
  *
  * @since 1.0.0
+ * @example
+ * const { pngBase64Images } = await LocalLLM.generateImage({ prompt: 'A lake' });
  */
 export interface GenerateImageResponse {
   /**
-   * Array of generated images as base64-encoded PNG strings.
-   *
-   * Each string contains raw base64 data (without data URI prefix).
-   * To use in an img tag, prefix with 'data:image/png;base64,'.
+   * Raw base64 PNG images without a data-URI prefix.
    *
    * @since 1.0.0
-   * @example ['iVBORw0KGgoAAAANSUhEUg...', 'iVBORw0KGgoAAAANSUhEUg...']
+   * @example
+   * const dataUrl = `data:image/png;base64,${response.pngBase64Images[0]}`;
    */
   pngBase64Images: string[];
 }
 
 /**
- * Named error codes for LocalLLM plugin errors.
- *
- * These codes are included on errors thrown by the plugin across all platforms,
- * accessible via `error.code` in catch blocks.
- *
- * @since 1.0.0
- */
-export type LocalLLMErrorCode =
-  /** The current OS version or device hardware does not support on-device LLMs. */
-  | 'LOCAL_LLM_UNSUPPORTED_PLATFORM'
-  /** The on-device AI feature is supported but has not been enabled by the user (e.g. Apple Intelligence). */
-  | 'LOCAL_LLM_NOT_ENABLED'
-  /** The model exists on the device but is still downloading or initializing. */
-  | 'LOCAL_LLM_NOT_READY'
-  /** The model is unavailable for an unclassified reason. */
-  | 'LOCAL_LLM_UNAVAILABLE'
-  /** A prompt was sent to a session that is already generating a response. */
-  | 'LOCAL_LLM_RESPONSE_IN_PROGRESS'
-  /** The plugin implementation was not initialized. This should not occur under normal conditions. */
-  | 'LOCAL_LLM_NOT_INITIALIZED'
-  /** A required call parameter was missing (e.g. sessionId, prompt). */
-  | 'LOCAL_LLM_MISSING_PARAMETER'
-  /** The method was called on the web platform, which is not supported. */
-  | 'LOCAL_LLM_WEB_NOT_SUPPORTED'
-  /** Image generation failed (e.g. no available generation style). */
-  | 'LOCAL_LLM_IMAGE_GENERATION_FAILED'
-  /** An unexpected error was thrown by the underlying platform SDK. Check the error message for details. */
-  | 'LOCAL_LLM_UNKNOWN_ERROR';
-
-/**
- * Error thrown by the LocalLLM plugin, carrying a machine-readable `code`.
+ * Warmup options. Android performs global model warmup; iOS can prewarm a chat.
  *
  * @since 1.0.0
  * @example
- * ```typescript
- * try {
- *   await LocalLLM.prompt({ prompt: 'Hello' });
- * } catch (err) {
- *   if (err instanceof LocalLLMException) {
- *     console.log(err.code); // e.g. 'LOCAL_LLM_NOT_ENABLED'
- *   }
- * }
- * ```
+ * await LocalLLM.warmup({ chatId: chat.id });
+ */
+export interface WarmupOptions {
+  /**
+   * Explicit chat identifier to prewarm on iOS.
+   *
+   * @since 2.0.0
+   * @example
+   * options.chatId = chat.id;
+   */
+  chatId?: string;
+  /**
+   * @deprecated Legacy alias for `chatId`.
+   *
+   * @since 1.0.0
+   * @example
+   * options.sessionId = 'session-1';
+   */
+  sessionId?: string;
+  /**
+   * Optional prompt prefix used by Foundation Models.
+   *
+   * @since 1.0.0
+   * @example
+   * options.promptPrefix = 'You are a helpful assistant.';
+   */
+  promptPrefix?: string;
+}
+
+/**
+ * Stable Local LLM error codes.
+ *
+ * @since 2.0.0
+ * @example
+ * const code: LocalLLMErrorCode = 'LOCAL_LLM_NOT_AVAILABLE';
+ */
+export type LocalLLMErrorCode =
+  | 'LOCAL_LLM_NOT_AVAILABLE'
+  | 'LOCAL_LLM_DEVICE_NOT_ELIGIBLE'
+  | 'LOCAL_LLM_NOT_ENABLED'
+  | 'LOCAL_LLM_MODEL_NOT_READY'
+  | 'LOCAL_LLM_MODEL_DOWNLOAD_REQUIRED'
+  | 'LOCAL_LLM_CONTEXT_WINDOW_EXCEEDED'
+  | 'LOCAL_LLM_CHAT_NOT_FOUND'
+  | 'LOCAL_LLM_CHAT_BUSY'
+  | 'LOCAL_LLM_GENERATION_NOT_FOUND'
+  | 'LOCAL_LLM_GENERATION_CANCELLED'
+  | 'LOCAL_LLM_INVALID_OPTIONS'
+  | 'LOCAL_LLM_UNSUPPORTED'
+  | 'LOCAL_LLM_IMAGE_GENERATION_FAILED'
+  | 'LOCAL_LLM_UNKNOWN_ERROR';
+
+/**
+ * Web-only convenience error. Native Capacitor errors expose the same stable `code` property.
+ *
+ * @since 1.0.0
+ * @example
+ * throw new LocalLLMException('LOCAL_LLM_NOT_AVAILABLE', 'Model is not available.');
  */
 export class LocalLLMException extends Error {
   constructor(
@@ -379,31 +676,185 @@ export class LocalLLMException extends Error {
 }
 
 /**
- * Options for warming up the on-device LLM.
+ * Public on-device LLM plugin contract.
  *
  * @since 1.0.0
+ * @example
+ * import { LocalLLM } from '@rdlabo/capacitor-local-llm';
  */
-export interface WarmupOptions {
+export interface LocalLLMPlugin {
   /**
-   * The session identifier for the warmup.
+   * Returns detailed text-model availability.
    *
-   * This identifier will be associated with the warmed-up session,
-   * allowing you to use the same session for subsequent prompts.
-   *
-   * @since 1.0.0
-   * @platform ios
+   * @since 2.0.0
+   * @example
+   * await LocalLLM.getAvailability();
    */
-  sessionId: string;
+  getAvailability(): Promise<GetAvailabilityResult>;
 
   /**
-   * The prompt prefix to use for warming up the LLM.
+   * Starts an Android model download.
    *
-   * This text will be used to pre-initialize the model, reducing latency
-   * for subsequent prompts with similar prefixes.
+   * @since 2.0.0
+   * @example
+   * await LocalLLM.downloadModel();
+   */
+  downloadModel(): Promise<void>;
+
+  /**
+   * Initializes an explicit Android LiteRT-LM fallback model. Gemini Nano remains preferred when available.
+   * Configuring a model performs local file I/O and may take significant time. iOS and Web reject this API.
+   *
+   * @since 2.0.0
+   * @example
+   * await LocalLLM.configureFallbackModel({ path: '/android_asset/gemma.litertlm' });
+   */
+  configureFallbackModel(options: ConfigureFallbackModelOptions): Promise<void>;
+
+  /**
+   * Warms native model resources.
    *
    * @since 1.0.0
-   * @platform ios
-   * @example 'You are a helpful assistant that provides concise answers.'
+   * @example
+   * await LocalLLM.warmup();
    */
-  promptPrefix?: string;
+  warmup(options?: WarmupOptions): Promise<void>;
+
+  /**
+   * Creates a chat owned by the plugin until deletion.
+   *
+   * @since 2.0.0
+   * @example
+   * await LocalLLM.createChat();
+   */
+  createChat(options?: CreateChatOptions): Promise<CreateChatResult>;
+
+  /**
+   * Deletes a chat and cancels its generation.
+   *
+   * @since 2.0.0
+   * @example
+   * await LocalLLM.deleteChat({ id });
+   */
+  deleteChat(options: DeleteChatOptions): Promise<void>;
+
+  /**
+   * Generates complete text.
+   *
+   * @since 2.0.0
+   * @example
+   * await LocalLLM.generateText({ chatId, prompt: 'Hi' });
+   */
+  generateText(options: GenerateTextOptions): Promise<GenerateTextResult>;
+
+  /**
+   * Streams native chunks and returns complete text.
+   *
+   * @since 2.0.0
+   * @example
+   * await LocalLLM.streamText({ chatId, prompt: 'Hi' });
+   */
+  streamText(options: StreamTextOptions): Promise<StreamTextResult>;
+
+  /**
+   * Cancels an in-flight generation.
+   *
+   * @since 2.0.0
+   * @example
+   * await LocalLLM.cancelGeneration({ chatId });
+   */
+  cancelGeneration(options: CancelGenerationOptions): Promise<void>;
+
+  /**
+   * Generates PNG images on iOS.
+   *
+   * @since 1.0.0
+   * @example
+   * await LocalLLM.generateImage({ prompt: 'A lake' });
+   */
+  generateImage(options: GenerateImageOptions): Promise<GenerateImageResponse>;
+
+  /**
+   * @deprecated Use `getAvailability()`.
+   *
+   * @since 1.0.0
+   * @example
+   * await LocalLLM.systemAvailability();
+   */
+  systemAvailability(): Promise<SystemAvailabilityResponse>;
+
+  /**
+   * @deprecated Use `downloadModel()`.
+   *
+   * @since 1.0.0
+   * @example
+   * await LocalLLM.download();
+   */
+  download(): Promise<void>;
+
+  /**
+   * @deprecated Use explicit chat APIs. Calls without `sessionId` remain one-shot.
+   *
+   * @since 1.0.0
+   * @example
+   * await LocalLLM.prompt({ prompt: 'Hello' });
+   */
+  prompt(options: PromptOptions): Promise<PromptResponse>;
+
+  /**
+   * @deprecated Use `deleteChat()`.
+   *
+   * @since 1.0.0
+   * @example
+   * await LocalLLM.endSession({ sessionId });
+   */
+  endSession(options: EndSessionOptions): Promise<void>;
+
+  /**
+   * Listens for availability changes.
+   *
+   * @since 2.0.0
+   * @example
+   * await LocalLLM.addListener('availabilityChange', (event) => console.log(event.status));
+   */
+  addListener(eventName: 'availabilityChange', listenerFunc: AvailabilityChangeListener): Promise<PluginListenerHandle>;
+
+  /**
+   * @deprecated Use `availabilityChange`.
+   *
+   * @since 1.0.0
+   * @example
+   * await LocalLLM.addListener('systemAvailabilityChange', (event) => console.log(event.status));
+   */
+  addListener(
+    eventName: 'systemAvailabilityChange',
+    listenerFunc: SystemAvailabilityChangeListener,
+  ): Promise<PluginListenerHandle>;
+
+  /**
+   * Listens for Android download progress.
+   *
+   * @since 2.0.0
+   * @example
+   * await LocalLLM.addListener('downloadProgress', (event) => console.log(event.progress));
+   */
+  addListener(eventName: 'downloadProgress', listenerFunc: DownloadProgressListener): Promise<PluginListenerHandle>;
+
+  /**
+   * Listens for native text chunks.
+   *
+   * @since 2.0.0
+   * @example
+   * await LocalLLM.addListener('textChunk', (event) => console.log(event.text));
+   */
+  addListener(eventName: 'textChunk', listenerFunc: TextChunkListener): Promise<PluginListenerHandle>;
+
+  /**
+   * Removes every plugin listener.
+   *
+   * @since 1.0.0
+   * @example
+   * await LocalLLM.removeAllListeners();
+   */
+  removeAllListeners(): Promise<void>;
 }

@@ -1,11 +1,22 @@
 package io.ionic.localllm.plugin
 
-sealed class LocalLLMError(message: String, val code: String) : Exception(message) {
-    class Uninitialized : LocalLLMError("LocalLLM not initialized", "LOCAL_LLM_NOT_INITIALIZED")
-    class ResponseInProgress : LocalLLMError("Response is already in progress", "LOCAL_LLM_RESPONSE_IN_PROGRESS")
-    class UnsupportedPlatform : LocalLLMError("Gemini Nano is not supported on this device", "LOCAL_LLM_UNSUPPORTED_PLATFORM")
-    class NotReady : LocalLLMError("Gemini Nano model is not ready", "LOCAL_LLM_NOT_READY")
-    class Unavailable : LocalLLMError("Gemini Nano is currently unavailable", "LOCAL_LLM_UNAVAILABLE")
-    class MissingParameter(name: String) : LocalLLMError("$name is required", "LOCAL_LLM_MISSING_PARAMETER")
-    class FeaturedNotSupported(feature: String) : LocalLLMError("This feature is not supported on Android: $feature", "LOCAL_LLM_FEATURE_NOT_SUPPORTED_ON_ANDROID")
+sealed class LocalLLMError(message: String, val code: String, cause: Throwable? = null) : Exception(message, cause) {
+    class NotAvailable(cause: Throwable? = null) :
+        LocalLLMError("The on-device language model is unavailable", "LOCAL_LLM_NOT_AVAILABLE", cause)
+    class DeviceNotEligible(cause: Throwable? = null) :
+        LocalLLMError("This device is not eligible for Gemini Nano", "LOCAL_LLM_DEVICE_NOT_ELIGIBLE", cause)
+    class ModelNotReady(cause: Throwable? = null) :
+        LocalLLMError("The on-device language model is not ready", "LOCAL_LLM_MODEL_NOT_READY", cause)
+    class DownloadRequired :
+        LocalLLMError("The on-device language model must be downloaded", "LOCAL_LLM_MODEL_DOWNLOAD_REQUIRED")
+    class ContextWindowExceeded(cause: Throwable? = null) :
+        LocalLLMError("The chat context window was exceeded", "LOCAL_LLM_CONTEXT_WINDOW_EXCEEDED", cause)
+    class ChatNotFound : LocalLLMError("Chat not found", "LOCAL_LLM_CHAT_NOT_FOUND")
+    class ChatBusy : LocalLLMError("A generation is already running for this chat", "LOCAL_LLM_CHAT_BUSY")
+    class GenerationNotFound : LocalLLMError("Generation not found", "LOCAL_LLM_GENERATION_NOT_FOUND")
+    class GenerationCancelled(cause: Throwable? = null) :
+        LocalLLMError("Generation was cancelled", "LOCAL_LLM_GENERATION_CANCELLED", cause)
+    class InvalidOptions(message: String) : LocalLLMError(message, "LOCAL_LLM_INVALID_OPTIONS")
+    class Unsupported(feature: String) :
+        LocalLLMError("$feature is not supported on Android", "LOCAL_LLM_UNSUPPORTED")
 }

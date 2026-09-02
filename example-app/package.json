@@ -4,6 +4,7 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
+    "cap:sync": "node scripts/sync-capacitor.mjs",
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
@@ -19,9 +20,9 @@
     "@capacitor/ios": "^8.3.0",
     "@capacitor/keyboard": "^8.0.1",
     "@capacitor/status-bar": "^8.0.1",
-    "@capacitor/local-llm": "file://../",
     "@ionic/react": "^8.5.0",
     "@ionic/react-router": "^8.5.0",
+    "@rdlabo/capacitor-local-llm": "file://../",
     "@types/react-router": "^5.1.20",
     "@types/react-router-dom": "^5.3.3",
     "ionicons": "^7.4.0",
@@ -31,7 +32,7 @@
     "react-router-dom": "^5.3.4"
   },
   "devDependencies": {
-    "@capacitor/cli": "^8.1.0",
+    "@capacitor/cli": "^8.5.1",
     "@testing-library/dom": ">=7.21.4",
     "@testing-library/jest-dom": "^5.16.5",
     "@testing-library/react": "^16.2.0",
