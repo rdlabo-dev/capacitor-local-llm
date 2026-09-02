@@ -17,6 +17,108 @@ export type Availability =
   | 'unavailable';
 
 /**
+ * Image reference for vision-capable text generation.
+ *
+ * @since 2.1.0
+ * @example
+ * const image: ImageInput = { base64: encodedImage };
+ */
+export type ImageInput = ImageUriInput | Base64ImageInput;
+
+/**
+ * Local URI image input.
+ *
+ * @since 2.1.0
+ * @example
+ * const image: ImageUriInput = { uri: 'file:///data/user/0/com.example.app/files/photo.jpg' };
+ */
+export interface ImageUriInput {
+  /**
+   * Image URI. iOS accepts readable absolute local paths and `file://` URLs.
+   * Android accepts absolute paths, `file://` URLs, and `content://` URIs.
+   *
+   * @since 2.1.0
+   * @example
+   * image.uri = 'content://media/external/images/media/42';
+   */
+  uri: string;
+  /**
+   * Base64 and URI inputs are mutually exclusive.
+   *
+   * @since 2.1.0
+   */
+  base64?: never;
+}
+
+/**
+ * Base64-encoded image input.
+ *
+ * @since 2.1.0
+ * @example
+ * const image: Base64ImageInput = { base64: encodedImage };
+ */
+export interface Base64ImageInput {
+  /**
+   * Raw Base64 image bytes or a `data:image/...;base64,...` URL. The decoded image must not
+   * exceed 32 MiB.
+   *
+   * @since 2.1.0
+   * @example
+   * image.base64 = '/9j/4AAQSkZJRgABAQ...';
+   */
+  base64: string;
+  /**
+   * Base64 and URI inputs are mutually exclusive.
+   *
+   * @since 2.1.0
+   */
+  uri?: never;
+}
+
+/**
+ * Native backend selected for on-device image analysis.
+ *
+ * @since 2.1.0
+ * @example
+ * const backend: ImageAnalysisBackend = 'foundation-models';
+ */
+export type ImageAnalysisBackend = 'foundation-models' | 'ml-kit-prompt' | 'litert-lm';
+
+/**
+ * Result returned by image-analysis availability checks.
+ *
+ * @since 2.1.0
+ * @example
+ * const { status } = await LocalLLM.getImageAnalysisAvailability();
+ */
+export interface GetImageAnalysisAvailabilityResult {
+  /**
+   * Current image-analysis availability.
+   *
+   * @since 2.1.0
+   * @example
+   * result.status === 'available';
+   */
+  status: Availability;
+  /**
+   * Native backend that would handle image analysis when available.
+   *
+   * @since 2.1.0
+   * @example
+   * result.backend === 'foundation-models';
+   */
+  backend?: ImageAnalysisBackend;
+  /**
+   * Maximum images accepted in one generation for the active backend.
+   *
+   * @since 2.1.0
+   * @example
+   * result.maxImages === 4;
+   */
+  maxImages?: number;
+}
+
+/**
  * @deprecated Use {@link Availability}.
  *
  * @since 1.0.0
@@ -278,10 +380,25 @@ export interface GenerateTextOptions {
    */
   prompt: string;
   /**
-   * Local image paths supplied to a vision-capable Android LiteRT-LM fallback model.
-   * Absolute paths, `file://` URLs, and readable `content://` URIs are accepted. iOS, Web,
-   * Gemini Nano, and text-only fallback models reject image input with `LOCAL_LLM_UNSUPPORTED`.
+   * Images supplied to a vision-capable backend. On iOS 27+ (builds compiled with Xcode 27 /
+   * Swift 6.4), Foundation Models `Attachment` accepts up to 4 images of at most 32 MiB each
+   * via readable absolute paths, `file://` URLs, raw Base64, or Base64 data URLs; after a
+   * successful generation, attachments are removed from retained chat history while the text
+   * prompt and response remain. Android uses Gemini Nano prompt APIs or a configured LiteRT-LM
+   * fallback with absolute/`file://`/`content://`/Base64 input and ML Kit aggregate pixel limits.
+   * Web and text-only backends reject image input with `LOCAL_LLM_UNSUPPORTED`.
    *
+   * @since 2.1.0
+   * @example
+   * options.images = [{ uri: 'file:///data/user/0/com.example.app/files/photo.jpg' }];
+   */
+  images?: ImageInput[];
+  /**
+   * Local image paths supplied to a vision-capable Android LiteRT-LM fallback model.
+   * Absolute paths, `file://` URLs, and readable `content://` URIs are accepted. This
+   * compatibility path retains the v2.0 LiteRT-LM routing even when ML Kit is available.
+   *
+   * @deprecated Use {@link GenerateTextOptions.images} instead.
    * @since 2.0.0
    * @example
    * options.imagePaths = ['file:///data/user/0/com.example.app/files/photo.jpg'];
@@ -402,6 +519,57 @@ export interface TextChunkEvent {
 }
 
 /**
+ * Native generation lifecycle state.
+ *
+ * @since 2.1.0
+ * @example
+ * event.state === 'started';
+ */
+export type GenerationState = 'started' | 'completed' | 'cancelled' | 'failed';
+
+/**
+ * Lifecycle event emitted for both `generateText()` and `streamText()`.
+ *
+ * @since 2.1.0
+ * @example
+ * LocalLLM.addListener('generationStateChange', (event) => console.log(event.state));
+ */
+export interface GenerationStateChangeEvent {
+  /**
+   * Chat that owns the generation.
+   *
+   * @since 2.1.0
+   * @example
+   * event.chatId === chat.id;
+   */
+  chatId: string;
+  /**
+   * Native generation identifier, available from the `started` event.
+   *
+   * @since 2.1.0
+   * @example
+   * console.log(event.generationId);
+   */
+  generationId: string;
+  /**
+   * Current lifecycle state.
+   *
+   * @since 2.1.0
+   * @example
+   * event.state === 'completed';
+   */
+  state: GenerationState;
+  /**
+   * Stable error code for `cancelled` and `failed` states.
+   *
+   * @since 2.1.0
+   * @example
+   * event.errorCode === 'LOCAL_LLM_GENERATION_CANCELLED';
+   */
+  errorCode?: LocalLLMErrorCode;
+}
+
+/**
  * Model download progress. Intermediate Android events omit `progress` because ML Kit has no total byte count.
  *
  * @since 2.0.0
@@ -470,6 +638,15 @@ export type DownloadProgressListener = (event: DownloadProgressEvent) => void;
  * const listener: TextChunkListener = (event) => console.log(event.text);
  */
 export type TextChunkListener = (event: TextChunkEvent) => void;
+
+/**
+ * Listener for native generation lifecycle changes.
+ *
+ * @since 2.1.0
+ * @example
+ * const listener: GenerationStateChangeListener = (event) => console.log(event.state);
+ */
+export type GenerationStateChangeListener = (event: GenerationStateChangeEvent) => void;
 
 /**
  * Legacy prompt options.
@@ -655,6 +832,9 @@ export type LocalLLMErrorCode =
   | 'LOCAL_LLM_GENERATION_CANCELLED'
   | 'LOCAL_LLM_INVALID_OPTIONS'
   | 'LOCAL_LLM_UNSUPPORTED'
+  | 'LOCAL_LLM_IMAGE_NOT_READABLE'
+  | 'LOCAL_LLM_IMAGE_TOO_LARGE'
+  | 'LOCAL_LLM_GENERATION_FAILED'
   | 'LOCAL_LLM_IMAGE_GENERATION_FAILED'
   | 'LOCAL_LLM_UNKNOWN_ERROR';
 
@@ -691,6 +871,19 @@ export interface LocalLLMPlugin {
    * await LocalLLM.getAvailability();
    */
   getAvailability(): Promise<GetAvailabilityResult>;
+
+  /**
+   * Returns image-analysis availability and the native backend that would handle vision input.
+   * On iOS 27 builds compiled with Xcode 27 / Swift 6.4, returns the text-model `status` plus
+   * `backend: 'foundation-models'` and `maxImages: 4`. Builds made with older Xcode report
+   * `unavailable` and cannot include iOS 27 vision support. Android reports Gemini Nano prompt
+   * APIs or a configured LiteRT-LM fallback. Web rejects this API.
+   *
+   * @since 2.1.0
+   * @example
+   * await LocalLLM.getImageAnalysisAvailability();
+   */
+  getImageAnalysisAvailability(): Promise<GetImageAnalysisAvailabilityResult>;
 
   /**
    * Starts an Android model download.
@@ -848,6 +1041,18 @@ export interface LocalLLMPlugin {
    * await LocalLLM.addListener('textChunk', (event) => console.log(event.text));
    */
   addListener(eventName: 'textChunk', listenerFunc: TextChunkListener): Promise<PluginListenerHandle>;
+
+  /**
+   * Listens for generation start, completion, cancellation, and failure.
+   *
+   * @since 2.1.0
+   * @example
+   * await LocalLLM.addListener('generationStateChange', (event) => console.log(event.state));
+   */
+  addListener(
+    eventName: 'generationStateChange',
+    listenerFunc: GenerationStateChangeListener,
+  ): Promise<PluginListenerHandle>;
 
   /**
    * Removes every plugin listener.

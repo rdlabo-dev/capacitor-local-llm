@@ -4,6 +4,7 @@ public struct HistoryLimits: Sendable {
     static let defaultMaxMessages = 20
     static let defaultMaxCharacters = 12_000
     static let defaultReservedOutputCharacters = 512
+    static let reservedCharactersPerImage = 2_048
 
     let maxMessages: Int
     let maxCharacters: Int
@@ -36,6 +37,18 @@ func trimmedTranscriptEntries(
         entries.removeSubrange(promptIndex...(responseIndex ?? promptIndex))
     }
     return entries
+}
+
+@available(iOS 26.0, *)
+func appendingTextTurn(
+    to source: [Transcript.Entry],
+    prompt: String,
+    response: String
+) -> [Transcript.Entry] {
+    source + [
+        .prompt(.init(segments: [.text(.init(content: prompt))])),
+        .response(.init(assetIDs: [], segments: [.text(.init(content: response))]))
+    ]
 }
 
 @available(iOS 26.0, *)

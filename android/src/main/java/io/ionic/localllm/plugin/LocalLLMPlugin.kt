@@ -16,6 +16,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
+private data class ParsedImageInput(
+    val images: List<AndroidImageInput>,
+    val legacyRouting: Boolean = false
+)
+
 @CapacitorPlugin(name = "LocalLLM")
 class LocalLLMPlugin : Plugin() {
     private var implementation: LocalLLM? = null
@@ -66,6 +71,21 @@ class LocalLLMPlugin : Plugin() {
 
     @PluginMethod
     fun getAvailability(call: PluginCall) = resolveAvailability(call)
+
+    @PluginMethod
+    fun getImageAnalysisAvailability(call: PluginCall) {
+        coroutineScope.launch {
+            try {
+                val result = impl().imageAnalysisAvailability()
+                val data = JSObject().put("status", result.availability.value)
+                result.backend?.let { data.put("backend", it.value) }
+                result.maxImages?.let { data.put("maxImages", it) }
+                call.resolve(data)
+            } catch (error: Exception) {
+                call.rejectWithError(error)
+            }
+        }
+    }
 
     @PluginMethod
     fun systemAvailability(call: PluginCall) = resolveAvailability(call, legacy = true)
@@ -155,11 +175,17 @@ class LocalLLMPlugin : Plugin() {
     fun generateText(call: PluginCall) {
         coroutineScope.launch {
             try {
+                val chatId = call.requiredString("chatId")
+                val imageInput = imageInput(call)
                 val result = impl().generateText(
-                    call.requiredString("chatId"),
+                    chatId,
                     call.requiredString("prompt"),
                     generationOptions(call, legacy = false),
-                    imagePaths(call)
+                    imageInput.images,
+                    imageInput.legacyRouting,
+                    onState = { generationId, state, errorCode ->
+                        notifyGenerationState(chatId, generationId, state, errorCode)
+                    }
                 )
                 call.resolve(result.toJSObject())
             } catch (error: Exception) {
@@ -173,17 +199,22 @@ class LocalLLMPlugin : Plugin() {
         coroutineScope.launch {
             try {
                 val chatId = call.requiredString("chatId")
+                val imageInput = imageInput(call)
                 val result = impl().streamText(
                     chatId,
                     call.requiredString("prompt"),
                     generationOptions(call, legacy = false),
-                    imagePaths(call)
-                ) { generationId, chunk ->
+                    imageInput.images,
+                    imageInput.legacyRouting,
+                    onState = { generationId, state, errorCode ->
+                        notifyGenerationState(chatId, generationId, state, errorCode)
+                    },
+                    onChunk = { generationId, chunk ->
                     notifyListeners(
                         "textChunk",
                         JSObject().put("chatId", chatId).put("generationId", generationId).put("text", chunk)
                     )
-                }
+                })
                 call.resolve(result.toJSObject())
             } catch (error: Exception) {
                 call.rejectWithError(error)
@@ -261,14 +292,38 @@ class LocalLLMPlugin : Plugin() {
         )
     }
 
-    private fun imagePaths(call: PluginCall): List<String> {
-        if (!call.data.has("imagePaths")) return emptyList()
+    private fun imageInput(call: PluginCall): ParsedImageInput {
+        val hasImages = call.data.has("images")
+        val hasLegacyPaths = call.data.has("imagePaths")
+        if (hasImages && hasLegacyPaths) {
+            throw LocalLLMError.InvalidOptions("images and imagePaths cannot be used together")
+        }
+        if (hasImages) {
+            val values = call.getArray("images")
+                ?: throw LocalLLMError.InvalidOptions("images must be an array")
+            if (values.length() > ImageInputPolicy.MAX_IMAGES) {
+                throw LocalLLMError.InvalidOptions(
+                    "at most ${ImageInputPolicy.MAX_IMAGES} image(s) can be supplied"
+                )
+            }
+            return ParsedImageInput((0 until values.length()).map { index ->
+                val image = values.optJSONObject(index)
+                    ?: throw LocalLLMError.InvalidOptions("each image must be an object")
+                val uri = image.optString("uri").takeIf(String::isNotBlank)
+                val base64 = image.optString("base64").takeIf(String::isNotBlank)
+                if ((uri == null) == (base64 == null)) {
+                    throw LocalLLMError.InvalidOptions("each image must contain exactly one of uri or base64")
+                }
+                uri?.let(AndroidImageInput::UriValue) ?: AndroidImageInput.Base64Value(base64!!)
+            })
+        }
+        if (!hasLegacyPaths) return ParsedImageInput(emptyList())
         val values = call.getArray("imagePaths")
             ?: throw LocalLLMError.InvalidOptions("imagePaths must be an array")
-        return (0 until values.length()).map { index ->
-            values.optString(index).takeIf { it.isNotBlank() }
+        return ParsedImageInput((0 until values.length()).map { index ->
+            values.optString(index).takeIf(String::isNotBlank)
                 ?: throw LocalLLMError.InvalidOptions("imagePaths must contain non-empty strings")
-        }
+        }.map(AndroidImageInput::UriValue), legacyRouting = true)
     }
 
     private fun JSObject.optionalDouble(name: String): Double? {
@@ -288,6 +343,17 @@ class LocalLLMPlugin : Plugin() {
 
     private fun TextGenerationResult.toJSObject() =
         JSObject().put("text", text).put("generationId", generationId)
+
+    private fun notifyGenerationState(
+        chatId: String,
+        generationId: String,
+        state: NativeGenerationState,
+        errorCode: String?
+    ) {
+        val data = JSObject().put("chatId", chatId).put("generationId", generationId).put("state", state.value)
+        errorCode?.let { data.put("errorCode", it) }
+        notifyListeners("generationStateChange", data)
+    }
 
     private fun PluginCall.requiredString(name: String): String =
         getString(name)?.takeIf { it.isNotBlank() }

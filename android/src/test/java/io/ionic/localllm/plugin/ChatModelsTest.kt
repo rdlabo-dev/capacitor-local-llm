@@ -106,12 +106,51 @@ class ChatModelsTest {
             chooseGenerationBackend(LLMAvailability.Available, fallbackReady = true, true, imagesRequested = false)
         )
         assertEquals(
+            GenerationBackend.System,
+            chooseGenerationBackend(LLMAvailability.Available, fallbackReady = true, true, imagesRequested = true)
+        )
+        assertEquals(
+            GenerationBackend.Fallback,
+            chooseGenerationBackend(
+                LLMAvailability.Available,
+                fallbackReady = true,
+                fallbackSupportsVision = true,
+                imagesRequested = true,
+                legacyImageRouting = true
+            )
+        )
+        assertThrows(LocalLLMError.Unsupported::class.java) {
+            chooseGenerationBackend(
+                LLMAvailability.Available,
+                fallbackReady = false,
+                fallbackSupportsVision = false,
+                imagesRequested = true,
+                legacyImageRouting = true
+            )
+        }
+        assertEquals(
             GenerationBackend.Fallback,
             chooseGenerationBackend(LLMAvailability.Unavailable, fallbackReady = true, true, imagesRequested = true)
         )
         assertThrows(LocalLLMError.Unsupported::class.java) {
-            chooseGenerationBackend(LLMAvailability.Available, fallbackReady = true, false, imagesRequested = true)
+            chooseGenerationBackend(LLMAvailability.Unavailable, fallbackReady = true, false, imagesRequested = true)
         }
+    }
+
+    @Test
+    fun imageAnalysisAvailabilityPrefersSystemThenVisionFallback() {
+        assertEquals(
+            ImageAnalysisBackend.MlKitPrompt,
+            resolveImageAnalysisAvailability(LLMAvailability.Available, true, false, true, 1).backend
+        )
+        val fallback = resolveImageAnalysisAvailability(LLMAvailability.Unavailable, true, false, true, 2)
+        assertEquals(LLMAvailability.Available, fallback.availability)
+        assertEquals(ImageAnalysisBackend.LiteRtLm, fallback.backend)
+        assertEquals(2, fallback.maxImages)
+        assertEquals(
+            LLMAvailability.Unavailable,
+            resolveImageAnalysisAvailability(LLMAvailability.Unavailable, false, false, false, 1).availability
+        )
     }
 
     @Test
@@ -132,10 +171,27 @@ class ChatModelsTest {
         val output = ByteArrayOutputStream()
         runBlocking { copyWithByteLimit(ByteArrayInputStream(ByteArray(4)), output, maxBytes = 4) }
         assertEquals(4, output.size())
-        assertThrows(LocalLLMError.InvalidOptions::class.java) {
+        assertThrows(LocalLLMError.ImageTooLarge::class.java) {
             runBlocking {
                 copyWithByteLimit(ByteArrayInputStream(ByteArray(5)), ByteArrayOutputStream(), maxBytes = 4)
             }
+        }
+    }
+
+    @Test
+    fun base64ImageInputAcceptsRawAndDataUrls() {
+        assertEquals(listOf(1, 2, 3), decodeBase64Image("AQID").map(Byte::toInt))
+        assertEquals(listOf(1, 2, 3), decodeBase64Image("data:image/png;base64,AQID").map(Byte::toInt))
+        assertThrows(LocalLLMError.ImageNotReadable::class.java) { decodeBase64Image("not-base64") }
+        assertThrows(LocalLLMError.InvalidOptions::class.java) { decodeBase64Image(" ") }
+    }
+
+    @Test
+    fun decodedImagesUseAnAggregatePixelBudget() {
+        val halfBudget = ImageInputPolicy.MAX_TOTAL_PIXEL_COUNT / 2
+        assertEquals(halfBudget, checkedTotalPixels(0, halfBudget.toInt(), 1))
+        assertThrows(LocalLLMError.ImageTooLarge::class.java) {
+            checkedTotalPixels(halfBudget, halfBudget.toInt() + 1, 1)
         }
     }
 

@@ -12,9 +12,16 @@ import {
   IonTitle,
   IonToolbar,
 } from '@ionic/react';
-import { LocalLLM } from '@rdlabo/capacitor-local-llm';
+import { LocalLLM, type GetImageAnalysisAvailabilityResult } from '@rdlabo/capacitor-local-llm';
 
+import { fileToBase64 } from '../lib/image';
 import './Tab1.css';
+import { AcceptanceTests } from './Tab1/AcceptanceTests';
+
+const DEFAULT_PROMPT = 'What is an LLM?';
+const IMAGE_PROMPT = 'この画像に何が写っているか、日本語で簡潔に説明してください。';
+const MAX_IMAGE_BYTES = 32 * 1024 * 1024;
+const DEFAULT_ANDROID_FALLBACK_PATH = '/data/user/0/io.ionic.starter/files/models/gemma-4-E2B-it.litertlm';
 
 const formatError = (err: unknown): string => {
   const message = (err as Error).message ?? 'Unknown error';
@@ -42,12 +49,13 @@ const statusColor = (status: string): string => {
 const Tab1: React.FC = () => {
   const [availability, setAvailability] = useState<string | null>(null);
   const [downloadLabel, setDownloadLabel] = useState<string | null>(null);
-  const [prompt, setPrompt] = useState<string>('What is an LLM?');
+  const [prompt, setPrompt] = useState<string>(DEFAULT_PROMPT);
   const [chatId, setChatId] = useState<string | null>(null);
   const [generationId, setGenerationId] = useState<string | null>(null);
   const [response, setResponse] = useState<string>('');
-  const [fallbackModelPath, setFallbackModelPath] = useState<string>('/android_asset/gemma-4-E2B-it.litertlm');
-  const [imagePath, setImagePath] = useState<string>('');
+  const [fallbackModelPath, setFallbackModelPath] = useState<string>(DEFAULT_ANDROID_FALLBACK_PATH);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imageAnalysis, setImageAnalysis] = useState<GetImageAnalysisAvailabilityResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState<boolean>(false);
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
@@ -57,10 +65,16 @@ const Tab1: React.FC = () => {
   const downloadProgressListenerRef = useRef<PluginListenerHandle | null>(null);
   const textChunkListenerRef = useRef<PluginListenerHandle | null>(null);
   const chatIdRef = useRef<string | null>(null);
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
 
   const removeListener = async (ref: React.MutableRefObject<PluginListenerHandle | null>) => {
     await ref.current?.remove();
     ref.current = null;
+  };
+
+  const loadImageAnalysisAvailability = async () => {
+    const result = await LocalLLM.getImageAnalysisAvailability();
+    setImageAnalysis(result);
   };
 
   useEffect(() => {
@@ -68,6 +82,7 @@ const Tab1: React.FC = () => {
       try {
         const { status } = await LocalLLM.getAvailability();
         setAvailability(status);
+        await loadImageAnalysisAvailability();
       } catch (err) {
         setError(formatError(err));
       }
@@ -113,6 +128,7 @@ const Tab1: React.FC = () => {
       });
       const { status } = await LocalLLM.getAvailability();
       setAvailability(status);
+      await loadImageAnalysisAvailability();
     } catch (err) {
       setError(formatError(err));
     } finally {
@@ -159,6 +175,37 @@ const Tab1: React.FC = () => {
     return chat.id;
   };
 
+  const onSelectImage = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    setError(null);
+    if (file && file.type && !file.type.startsWith('image/')) {
+      event.target.value = '';
+      setSelectedImage(null);
+      setPrompt(DEFAULT_PROMPT);
+      setError('[LOCAL_LLM_INVALID_OPTIONS] Please select an image file.');
+      return;
+    }
+    if (file && file.size > MAX_IMAGE_BYTES) {
+      event.target.value = '';
+      setSelectedImage(null);
+      setPrompt(DEFAULT_PROMPT);
+      setError('[LOCAL_LLM_IMAGE_TOO_LARGE] The image must not exceed 32 MiB.');
+      return;
+    }
+    setSelectedImage(file);
+    if (file) {
+      setPrompt(IMAGE_PROMPT);
+    }
+  };
+
+  const onClearImage = () => {
+    setSelectedImage(null);
+    setPrompt(DEFAULT_PROMPT);
+    if (imageInputRef.current) {
+      imageInputRef.current.value = '';
+    }
+  };
+
   const onStream = async () => {
     setError(null);
     setResponse('');
@@ -166,7 +213,6 @@ const Tab1: React.FC = () => {
     setIsStreaming(true);
 
     let activeChatId: string | null = null;
-
     try {
       activeChatId = await ensureChat();
       await removeListener(textChunkListenerRef);
@@ -179,11 +225,15 @@ const Tab1: React.FC = () => {
         setResponse((prev) => prev + event.text);
       });
 
-      const trimmedImagePath = imagePath.trim();
+      let imageBase64: string | undefined;
+      if (selectedImage) {
+        imageBase64 = await fileToBase64(selectedImage);
+      }
+
       const result = await LocalLLM.streamText({
         chatId: activeChatId,
         prompt,
-        ...(trimmedImagePath ? { imagePaths: [trimmedImagePath] } : {}),
+        ...(imageBase64 ? { images: [{ base64: imageBase64 }] } : {}),
       });
       setResponse(result.text);
       setGenerationId(result.generationId);
@@ -264,23 +314,26 @@ const Tab1: React.FC = () => {
             </IonChip>
           )}
 
-          <IonTextarea
-            fill="outline"
-            labelPlacement="floating"
-            label="Fallback model path (Android)"
-            value={fallbackModelPath}
-            onIonInput={(e) => setFallbackModelPath(e.detail.value ?? '')}
-          />
+          <div className="control-group">
+            <p className="control-group-label">Android fallback</p>
+            <IonTextarea
+              fill="outline"
+              labelPlacement="floating"
+              label="Fallback model path (Android)"
+              value={fallbackModelPath}
+              onIonInput={(e) => setFallbackModelPath(e.detail.value ?? '')}
+            />
 
-          <IonButton expand="block" disabled={isConfiguringFallback} onClick={onConfigureFallback}>
-            Configure Fallback
-          </IonButton>
+            <IonButton expand="block" disabled={isConfiguringFallback} onClick={onConfigureFallback}>
+              Configure Fallback
+            </IonButton>
 
-          {isConfiguringFallback && (
-            <div className="loading">
-              <IonSpinner />
-            </div>
-          )}
+            {isConfiguringFallback && (
+              <div className="loading">
+                <IonSpinner />
+              </div>
+            )}
+          </div>
 
           {chatId && (
             <IonChip color="medium">
@@ -296,13 +349,47 @@ const Tab1: React.FC = () => {
             onIonInput={(e) => setPrompt(e.detail.value ?? '')}
           />
 
-          <IonTextarea
-            fill="outline"
-            labelPlacement="floating"
-            label="Image path (optional, Android fallback)"
-            value={imagePath}
-            onIonInput={(e) => setImagePath(e.detail.value ?? '')}
-          />
+          <div className="control-group">
+            <label className="control-group-label" htmlFor="image-file-input">
+              Image analysis
+            </label>
+            <input
+              id="image-file-input"
+              ref={imageInputRef}
+              type="file"
+              accept="image/*"
+              onChange={onSelectImage}
+            />
+
+            {selectedImage && (
+              <div className="image-file-row">
+                <span className="image-file-name">{selectedImage.name}</span>
+                <IonButton size="small" fill="outline" color="medium" onClick={onClearImage}>
+                  Clear
+                </IonButton>
+              </div>
+            )}
+
+            {imageAnalysis && (
+              <>
+                <IonChip color={statusColor(imageAnalysis.status)}>
+                  <IonLabel>image analysis: {imageAnalysis.status}</IonLabel>
+                </IonChip>
+                {imageAnalysis.backend && (
+                  <IonChip color="medium">
+                    <IonLabel>backend: {imageAnalysis.backend}</IonLabel>
+                  </IonChip>
+                )}
+                {imageAnalysis.maxImages != null && (
+                  <IonChip color="medium">
+                    <IonLabel>max images: {imageAnalysis.maxImages}</IonLabel>
+                  </IonChip>
+                )}
+              </>
+            )}
+          </div>
+
+          <AcceptanceTests image={selectedImage} fallbackModelPath={fallbackModelPath} />
 
           <IonButton expand="block" disabled={isStreaming} onClick={onStream}>
             Stream Response

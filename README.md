@@ -22,7 +22,7 @@ npx cap sync
 
 | Platform | Minimum OS | Notes |
 |----------|------------|-------|
-| iOS | **18.4** | Image generation requires iOS 18.4+. Text LLM (Foundation Models / Apple Intelligence) requires iOS 26+. |
+| iOS | **18.4** | Image generation requires iOS 18.4+. Text LLM requires iOS 26+. Image analysis uses Foundation Models `Attachment` on iOS 27+ when compiled with Xcode 27 / Swift 6.4. |
 | Android | **API 29 (Android 10)** | Gemini Nano via ML Kit requires a compatible physical device (e.g. Pixel 9+). |
 
 ## iOS Setup
@@ -31,9 +31,11 @@ CocoaPods users need no additional configuration. Foundation Models and Image Pl
 
 For Capacitor projects using Swift Package Manager, the current Capacitor CLI generates `CapApp-SPM/Package.swift` with an iOS 18.0 deployment target and does not preserve the required minor version. After every `npx cap sync ios`, change its platform declaration to `platforms: [.iOS("18.4")]`. The included example app automates this with `npm run cap:sync`; see [`example-app/scripts/sync-capacitor.mjs`](example-app/scripts/sync-capacitor.mjs) for the small, fail-fast wrapper.
 
-Call [`getAvailability()`](#getavailability) at runtime to check whether the text model is ready before creating chats or generating text.
+Call [`getAvailability()`](#getavailability) at runtime to check whether the text model is ready before creating chats or generating text. Check [`getImageAnalysisAvailability()`](#getimageanalysisavailability) separately before supplying images because text and vision availability can differ.
 
 On iOS versions below 26, only `getAvailability()` reports `'device-not-eligible'` for the text LLM. Text and chat APIs such as `createChat()`, `deleteChat()`, `generateText()`, and `streamText()` reject with `LOCAL_LLM_UNSUPPORTED`. Image generation via `generateImage()` is available on iOS 18.4+.
+
+Image analysis uses native Foundation Models `Attachment` on iOS 27+ when the plugin is compiled with Xcode 27 / Swift 6.4. Each `images[]` item accepts either a readable local `uri` (`content://` is Android-only) or raw Base64 / a Base64 data URL. Up to 4 images are accepted, each limited to 32 MiB after decoding. Base64 inputs are converted to bounded temporary native files and removed after generation. On iOS 27 builds, `getImageAnalysisAvailability()` returns the text-model `status` plus `backend: 'foundation-models'` and `maxImages: 4`; builds made with older Xcode report `unavailable` and cannot include iOS 27 vision support. After a successful generation, image attachments are removed from retained chat history while the text prompt and response remain.
 
 [`downloadModel()`](#downloadmodel) is not available on iOS — the OS manages the model. Use `getAvailability()` or the `availabilityChange` event to observe readiness.
 
@@ -101,11 +103,15 @@ const { id: chatId } = await LocalLLM.createChat({
 const result = await LocalLLM.generateText({
   chatId,
   prompt: 'Describe this image concisely.',
-  imagePaths: ['content://com.example.files/photo.jpg'],
+  images: [{ uri: 'content://com.example.files/photo.jpg' }],
 });
 ```
 
-`imagePaths` accepts readable absolute paths, decoded `file://` URLs without an authority, and `content://` URIs. Each image is limited to 32 MiB. Content URIs are copied on an I/O dispatcher to a bounded temporary app cache file for the native engine and removed after generation. Images are supported only by the configured Android fallback; iOS, Web, Gemini Nano, and text-only fallback models reject them with `LOCAL_LLM_UNSUPPORTED` instead of ignoring them. Image files are input for the current turn and are not retained in chat history.
+Each `images[]` item accepts exactly one of `uri` or `base64`. Android URI input accepts readable absolute paths, decoded `file://` URLs without an authority, and `content://` URIs. Base64 input accepts raw encoded bytes or a `data:image/...;base64,...` URL. The deprecated `imagePaths` option remains for compatibility and retains its v2.0 behavior of routing only to a configured LiteRT-LM fallback, even when ML Kit is available; do not pass both options. Each decoded image is limited to 32 MiB. Content URIs and Base64 inputs are converted on an I/O dispatcher to bounded temporary app cache files and removed after generation. Images apply only to the current turn and are not retained in chat history.
+
+Call `getImageAnalysisAvailability()` before image input. Android treats ML Kit Prompt's common `available` status as availability for its documented image-input API and prefers that backend; otherwise it uses a configured image-capable LiteRT-LM fallback. ML Kit decodes images through Android APIs and bounds preprocessing to a 2048-pixel longest edge and roughly 4 megapixels per image, with a maximum of 4 images and roughly 8 megapixels in total per request. Consequently, `maxImages: 4` is only a count limit and four large images can still exceed the aggregate pixel budget. LiteRT-LM receives the resolved file directly. A text-only fallback rejects image input with `LOCAL_LLM_UNSUPPORTED` rather than silently ignoring it.
+
+The ML Kit multi-image path is experimental until it has completed physical-device acceptance testing on a compatible Gemini Nano device. Do not treat ML Kit image analysis as production-ready solely from `getImageAnalysisAvailability()`; validate generate/stream, cancellation, multiple images, content URI cleanup, and oversized-image errors on every supported device family.
 
 Prefer an app-managed absolute model path for large models. `/android_asset/...` is supported for convenience, but the plugin must copy that asset to private app files because the native engine needs a real path. It reuses the versioned private copy within the same app version, closes the old engine on reconfiguration, and removes older copies of the same asset after a successful new initialization. During an app upgrade, peak storage can temporarily include the packaged asset, the previous private copy, and the new temporary copy. The active engine remains loaded for the plugin lifetime; app-managed files must not be replaced or deleted until the plugin is destroyed or another model is successfully configured.
 
@@ -138,6 +144,7 @@ The deprecated `systemAvailability()` and `systemAvailabilityChange` fold detail
 ### iOS
 
 - **Text LLM requires iOS 26 and Apple Intelligence.** Below iOS 26, availability is reported as `device-not-eligible`. Only select iPhones (iPhone 15 Pro or later) and iPads support Apple Intelligence. [More information here](https://www.apple.com/apple-intelligence/).
+- **Image analysis uses Foundation Models `Attachment` on iOS 27+** when built with Xcode 27 / Swift 6.4. `getImageAnalysisAvailability()` returns the text-model status with `backend: 'foundation-models'` and `maxImages: 4`. Builds made with older Xcode report `unavailable` and cannot include vision support. Check it independently before attaching images. After a successful generation, attachments are stripped from retained chat history; the text prompt and response remain.
 - **Chats use the native Foundation Models transcript.** Conversation state lives in `LanguageModelSession`. Before generation, the plugin also applies a conservative character budget against the model's native `contextSize`, including instructions, the current prompt, and output headroom. When any limit is exceeded, it drops the oldest complete prompt/response turns, preserves instructions, and recreates the session.
 - **`warmup({ chatId, promptPrefix })` prewarms a specific chat** created with `createChat()`.
 - **`cancelGeneration()` cancels the in-flight `Task`** for the chat. The `streamText()` / `generateText()` promise rejects with `LOCAL_LLM_GENERATION_CANCELLED`; any text already streamed via `textChunk` remains in your UI.
@@ -152,6 +159,7 @@ The deprecated `systemAvailability()` and `systemAvailabilityChange` fold detail
 - **Native model operations run serially.** The plugin mutex protects Gemini Nano and LiteRT-LM generation, fallback configuration, warmup, download, and teardown, so concurrent generations in different chats are queued.
 - **Not all API 29+ devices support Gemini Nano.** The device must have a compatible on-device AI stack. [More information here](https://developers.google.com/ml-kit/genai#device-support).
 - **Apps may explicitly configure a LiteRT-LM fallback** when Gemini Nano is unavailable. Once initialization completes, `getAvailability()` reports `available`.
+- **Image analysis selects a native backend explicitly.** `getImageAnalysisAvailability()` reports `ml-kit-prompt` when ML Kit Prompt's common feature status is `available`, because that SDK status does not expose a separate vision-capability flag. It reports `litert-lm` when a configured vision fallback is ready.
 - **On-device models cannot be used while the app is in the background.** Inference requests made while backgrounded will fail.
 - **AICore enforces per-app inference quotas.** Excessive requests can return busy or quota errors from the underlying SDK — consider exponential backoff.
 
@@ -221,19 +229,24 @@ try {
 ```typescript
 import { LocalLLM } from '@rdlabo/capacitor-local-llm';
 
-const streamPromise = LocalLLM.streamText({ chatId, prompt: 'Write a long essay.' });
+const stateListener = await LocalLLM.addListener('generationStateChange', (event) => {
+  if (event.chatId === chatId && event.state === 'started') {
+    void LocalLLM.cancelGeneration({ chatId, generationId: event.generationId });
+  }
+});
 
-// Cancel the active generation for this chat (optionally pass generationId)
-await LocalLLM.cancelGeneration({ chatId });
+const streamPromise = LocalLLM.streamText({ chatId, prompt: 'Write a long essay.' });
 
 try {
   await streamPromise;
 } catch (err) {
   // LOCAL_LLM_GENERATION_CANCELLED on both platforms when cancellation is observed
+} finally {
+  await stateListener.remove();
 }
 ```
 
-`deleteChat()` also cancels any active generation for that chat.
+`generationStateChange` is emitted for both `generateText()` and `streamText()`. It reports `started` as soon as the native layer accepts a generation, before the first text chunk, followed by one terminal state: `completed`, `cancelled`, or `failed`. Use its `generationId` for deterministic cancellation. `deleteChat()` also cancels any active generation for that chat.
 
 ### Reduce first-response latency with warmup
 
@@ -268,6 +281,7 @@ const src = `data:image/png;base64,${pngBase64Images[0]}`;
 | `availabilityChange` | Fired when text-model availability changes while listeners are registered. |
 | `downloadProgress` | Fired during Android `downloadModel()`. Intermediate events may include only `downloadedBytes` because ML Kit does not expose a total byte count; `progress` is `0` at start and `1` on completion when known. |
 | `textChunk` | Fired during `streamText()` with incremental text for the matching `chatId` / `generationId`. |
+| `generationStateChange` | Fired for accepted text generations with `started`, then `completed`, `cancelled`, or `failed`. Terminal error events include a stable `errorCode`. |
 
 Remove listeners with the returned `PluginListenerHandle.remove()` or `removeAllListeners()`.
 
@@ -323,6 +337,9 @@ try {
 | `LOCAL_LLM_GENERATION_CANCELLED` | The generation was cancelled via `cancelGeneration()` or `deleteChat()`. |
 | `LOCAL_LLM_INVALID_OPTIONS` | An option value is missing or out of range. |
 | `LOCAL_LLM_UNSUPPORTED` | The method or feature is not supported on this platform or OS version. |
+| `LOCAL_LLM_IMAGE_NOT_READABLE` | An image URI cannot be resolved, opened, or decoded. |
+| `LOCAL_LLM_IMAGE_TOO_LARGE` | An image exceeds the platform input-size policy. |
+| `LOCAL_LLM_GENERATION_FAILED` | Generation failed for a stable, platform-mapped reason. |
 | `LOCAL_LLM_IMAGE_GENERATION_FAILED` | Image generation failed (e.g. no available style). |
 | `LOCAL_LLM_UNKNOWN_ERROR` | An unexpected underlying SDK error. Check `message` for details. |
 
@@ -331,6 +348,7 @@ try {
 <docgen-index>
 
 * [`getAvailability()`](#getavailability)
+* [`getImageAnalysisAvailability()`](#getimageanalysisavailability)
 * [`downloadModel()`](#downloadmodel)
 * [`configureFallbackModel(...)`](#configurefallbackmodel)
 * [`warmup(...)`](#warmup)
@@ -348,6 +366,7 @@ try {
 * [`addListener('systemAvailabilityChange', ...)`](#addlistenersystemavailabilitychange-)
 * [`addListener('downloadProgress', ...)`](#addlistenerdownloadprogress-)
 * [`addListener('textChunk', ...)`](#addlistenertextchunk-)
+* [`addListener('generationStateChange', ...)`](#addlistenergenerationstatechange-)
 * [`removeAllListeners()`](#removealllisteners)
 * [Interfaces](#interfaces)
 * [Type Aliases](#type-aliases)
@@ -370,6 +389,25 @@ Returns detailed text-model availability.
 **Returns:** <code>Promise&lt;<a href="#getavailabilityresult">GetAvailabilityResult</a>&gt;</code>
 
 **Since:** 2.0.0
+
+--------------------
+
+
+### getImageAnalysisAvailability()
+
+```typescript
+getImageAnalysisAvailability() => Promise<GetImageAnalysisAvailabilityResult>
+```
+
+Returns image-analysis availability and the native backend that would handle vision input.
+On iOS 27 builds compiled with Xcode 27 / Swift 6.4, returns the text-model `status` plus
+`backend: 'foundation-models'` and `maxImages: 4`. Builds made with older Xcode report
+`unavailable` and cannot include iOS 27 vision support. Android reports Gemini Nano prompt
+APIs or a configured LiteRT-LM fallback. Web rejects this API.
+
+**Returns:** <code>Promise&lt;<a href="#getimageanalysisavailabilityresult">GetImageAnalysisAvailabilityResult</a>&gt;</code>
+
+**Since:** 2.1.0
 
 --------------------
 
@@ -666,6 +704,26 @@ Listens for native text chunks.
 --------------------
 
 
+### addListener('generationStateChange', ...)
+
+```typescript
+addListener(eventName: 'generationStateChange', listenerFunc: GenerationStateChangeListener) => Promise<PluginListenerHandle>
+```
+
+Listens for generation start, completion, cancellation, and failure.
+
+| Param              | Type                                                                                    |
+| ------------------ | --------------------------------------------------------------------------------------- |
+| **`eventName`**    | <code>'generationStateChange'</code>                                                    |
+| **`listenerFunc`** | <code><a href="#generationstatechangelistener">GenerationStateChangeListener</a></code> |
+
+**Returns:** <code>Promise&lt;<a href="#pluginlistenerhandle">PluginListenerHandle</a>&gt;</code>
+
+**Since:** 2.1.0
+
+--------------------
+
+
 ### removeAllListeners()
 
 ```typescript
@@ -689,6 +747,17 @@ Result returned by availability checks.
 | Prop         | Type                                                  | Description                      | Since |
 | ------------ | ----------------------------------------------------- | -------------------------------- | ----- |
 | **`status`** | <code><a href="#availability">Availability</a></code> | Current text-model availability. | 2.0.0 |
+
+
+#### GetImageAnalysisAvailabilityResult
+
+Result returned by image-analysis availability checks.
+
+| Prop            | Type                                                                  | Description                                                       | Since |
+| --------------- | --------------------------------------------------------------------- | ----------------------------------------------------------------- | ----- |
+| **`status`**    | <code><a href="#availability">Availability</a></code>                 | Current image-analysis availability.                              | 2.1.0 |
+| **`backend`**   | <code><a href="#imageanalysisbackend">ImageAnalysisBackend</a></code> | Native backend that would handle image analysis when available.   | 2.1.0 |
+| **`maxImages`** | <code>number</code>                                                   | Maximum images accepted in one generation for the active backend. | 2.1.0 |
 
 
 #### ConfigureFallbackModelOptions
@@ -767,12 +836,33 @@ Result of a text generation.
 
 Options for a non-streaming generation.
 
-| Prop             | Type                                                            | Description                                                                                                                                                                                                                                                         | Since |
-| ---------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
-| **`chatId`**     | <code>string</code>                                             | Chat identifier returned by `createChat()`.                                                                                                                                                                                                                         | 2.0.0 |
-| **`prompt`**     | <code>string</code>                                             | User prompt.                                                                                                                                                                                                                                                        | 2.0.0 |
-| **`imagePaths`** | <code>string[]</code>                                           | Local image paths supplied to a vision-capable Android LiteRT-LM fallback model. Absolute paths, `file://` URLs, and readable `content://` URIs are accepted. iOS, Web, Gemini Nano, and text-only fallback models reject image input with `LOCAL_LLM_UNSUPPORTED`. | 2.0.0 |
-| **`options`**    | <code><a href="#generationoptions">GenerationOptions</a></code> | Optional generation controls.                                                                                                                                                                                                                                       | 2.0.0 |
+| Prop             | Type                                                            | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | Since |
+| ---------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| **`chatId`**     | <code>string</code>                                             | Chat identifier returned by `createChat()`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | 2.0.0 |
+| **`prompt`**     | <code>string</code>                                             | User prompt.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | 2.0.0 |
+| **`images`**     | <code>ImageInput[]</code>                                       | Images supplied to a vision-capable backend. On iOS 27+ (builds compiled with Xcode 27 / Swift 6.4), Foundation Models `Attachment` accepts up to 4 images of at most 32 MiB each via readable absolute paths, `file://` URLs, raw Base64, or Base64 data URLs; after a successful generation, attachments are removed from retained chat history while the text prompt and response remain. Android uses Gemini Nano prompt APIs or a configured LiteRT-LM fallback with absolute/`file://`/`content://`/Base64 input and ML Kit aggregate pixel limits. Web and text-only backends reject image input with `LOCAL_LLM_UNSUPPORTED`. | 2.1.0 |
+| **`imagePaths`** | <code>string[]</code>                                           | Local image paths supplied to a vision-capable Android LiteRT-LM fallback model. Absolute paths, `file://` URLs, and readable `content://` URIs are accepted. This compatibility path retains the v2.0 LiteRT-LM routing even when ML Kit is available.                                                                                                                                                                                                                                                                                                                                                                               | 2.0.0 |
+| **`options`**    | <code><a href="#generationoptions">GenerationOptions</a></code> | Optional generation controls.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | 2.0.0 |
+
+
+#### ImageUriInput
+
+Local URI image input.
+
+| Prop         | Type                | Description                                                                                                                                     | Since |
+| ------------ | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| **`uri`**    | <code>string</code> | Image URI. iOS accepts readable absolute local paths and `file://` URLs. Android accepts absolute paths, `file://` URLs, and `content://` URIs. | 2.1.0 |
+| **`base64`** |                     | Base64 and URI inputs are mutually exclusive.                                                                                                   | 2.1.0 |
+
+
+#### Base64ImageInput
+
+Base64-encoded image input.
+
+| Prop         | Type                | Description                                                                                            | Since |
+| ------------ | ------------------- | ------------------------------------------------------------------------------------------------------ | ----- |
+| **`base64`** | <code>string</code> | Raw Base64 image bytes or a `data:image/...;base64,...` URL. The decoded image must not exceed 32 MiB. | 2.1.0 |
+| **`uri`**    |                     | Base64 and URI inputs are mutually exclusive.                                                          | 2.1.0 |
 
 
 #### GenerationOptions
@@ -890,6 +980,18 @@ Incremental text emitted by `streamText()`.
 | **`text`**         | <code>string</code> | Newly generated text only, not the accumulated snapshot. | 2.0.0 |
 
 
+#### GenerationStateChangeEvent
+
+Lifecycle event emitted for both `generateText()` and `streamText()`.
+
+| Prop               | Type                                                            | Description                                                       | Since |
+| ------------------ | --------------------------------------------------------------- | ----------------------------------------------------------------- | ----- |
+| **`chatId`**       | <code>string</code>                                             | Chat that owns the generation.                                    | 2.1.0 |
+| **`generationId`** | <code>string</code>                                             | Native generation identifier, available from the `started` event. | 2.1.0 |
+| **`state`**        | <code><a href="#generationstate">GenerationState</a></code>     | Current lifecycle state.                                          | 2.1.0 |
+| **`errorCode`**    | <code><a href="#localllmerrorcode">LocalLLMErrorCode</a></code> | Stable error code for `cancelled` and `failed` states.            | 2.1.0 |
+
+
 ### Type Aliases
 
 
@@ -898,6 +1000,20 @@ Incremental text emitted by `streamText()`.
 The semantic availability of the on-device text model.
 
 <code>'available' | 'device-not-eligible' | 'not-enabled' | 'downloadable' | 'downloading' | 'not-ready' | 'unavailable'</code>
+
+
+#### ImageAnalysisBackend
+
+Native backend selected for on-device image analysis.
+
+<code>'foundation-models' | 'ml-kit-prompt' | 'litert-lm'</code>
+
+
+#### ImageInput
+
+Image reference for vision-capable text generation.
+
+<code><a href="#imageuriinput">ImageUriInput</a> | <a href="#base64imageinput">Base64ImageInput</a></code>
 
 
 #### StreamTextOptions
@@ -943,5 +1059,26 @@ Listener for model download progress.
 Listener for native generation chunks.
 
 <code>(event: <a href="#textchunkevent">TextChunkEvent</a>): void</code>
+
+
+#### GenerationStateChangeListener
+
+Listener for native generation lifecycle changes.
+
+<code>(event: <a href="#generationstatechangeevent">GenerationStateChangeEvent</a>): void</code>
+
+
+#### GenerationState
+
+Native generation lifecycle state.
+
+<code>'started' | 'completed' | 'cancelled' | 'failed'</code>
+
+
+#### LocalLLMErrorCode
+
+Stable Local LLM error codes.
+
+<code>'LOCAL_LLM_NOT_AVAILABLE' | 'LOCAL_LLM_DEVICE_NOT_ELIGIBLE' | 'LOCAL_LLM_NOT_ENABLED' | 'LOCAL_LLM_MODEL_NOT_READY' | 'LOCAL_LLM_MODEL_DOWNLOAD_REQUIRED' | 'LOCAL_LLM_CONTEXT_WINDOW_EXCEEDED' | 'LOCAL_LLM_CHAT_NOT_FOUND' | 'LOCAL_LLM_CHAT_BUSY' | 'LOCAL_LLM_GENERATION_NOT_FOUND' | 'LOCAL_LLM_GENERATION_CANCELLED' | 'LOCAL_LLM_INVALID_OPTIONS' | 'LOCAL_LLM_UNSUPPORTED' | 'LOCAL_LLM_IMAGE_NOT_READABLE' | 'LOCAL_LLM_IMAGE_TOO_LARGE' | 'LOCAL_LLM_GENERATION_FAILED' | 'LOCAL_LLM_IMAGE_GENERATION_FAILED' | 'LOCAL_LLM_UNKNOWN_ERROR'</code>
 
 </docgen-api>

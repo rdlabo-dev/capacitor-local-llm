@@ -10,6 +10,7 @@ public class LocalLLMPlugin: CAPPlugin, CAPBridgedPlugin, @unchecked Sendable {
     public let jsName = "LocalLLM"
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "getAvailability", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getImageAnalysisAvailability", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "downloadModel", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "configureFallbackModel", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "warmup", returnType: CAPPluginReturnPromise),
@@ -52,6 +53,18 @@ public class LocalLLMPlugin: CAPPlugin, CAPBridgedPlugin, @unchecked Sendable {
 
     @objc func getAvailability(_ call: CAPPluginCall) {
         resolveAvailability(call)
+    }
+
+    @objc func getImageAnalysisAvailability(_ call: CAPPluginCall) {
+        let availability = LocalLLM.imageAnalysisAvailability()
+        var result: JSObject = ["status": availability.rawValue]
+        #if compiler(>=6.4)
+        if #available(iOS 27.0, *), LocalLLM.imageAnalysisSupportsVision() {
+            result["backend"] = "foundation-models"
+            result["maxImages"] = LocalLLM.maxImagesPerGeneration
+        }
+        #endif
+        call.resolve(result)
     }
 
     @objc func systemAvailability(_ call: CAPPluginCall) {
@@ -104,13 +117,19 @@ public class LocalLLMPlugin: CAPPlugin, CAPBridgedPlugin, @unchecked Sendable {
     }
 
     @objc func generateText(_ call: CAPPluginCall) {
-        Task {
+        Task { [self] in
             do {
-                try rejectImageInput(call)
+                let chatId = try requiredString(call, "chatId")
+                let images = try resolvedImages(call)
+                defer { images.close() }
                 let result = try await implementation.generateText(
-                    chatId: requiredString(call, "chatId"),
+                    chatId: chatId,
                     prompt: requiredString(call, "prompt"),
-                    options: try generationOptions(call)
+                    options: try generationOptions(call),
+                    imageURLs: images.urls,
+                    onState: { [weak self] generationId, state, errorCode in
+                        self?.notifyGenerationState(chatId, generationId, state, errorCode)
+                    }
                 )
                 call.resolve(["text": result.text, "generationId": result.generationId])
             } catch {
@@ -120,21 +139,26 @@ public class LocalLLMPlugin: CAPPlugin, CAPBridgedPlugin, @unchecked Sendable {
     }
 
     @objc func streamText(_ call: CAPPluginCall) {
-        Task {
+        Task { [self] in
             do {
-                try rejectImageInput(call)
                 let chatId = try requiredString(call, "chatId")
+                let images = try resolvedImages(call)
+                defer { images.close() }
                 let result = try await implementation.streamText(
                     chatId: chatId,
                     prompt: requiredString(call, "prompt"),
-                    options: try generationOptions(call)
-                ) { [weak self] generationId, chunk in
+                    options: try generationOptions(call),
+                    imageURLs: images.urls,
+                    onState: { [weak self] generationId, state, errorCode in
+                        self?.notifyGenerationState(chatId, generationId, state, errorCode)
+                    },
+                    onChunk: { [weak self] generationId, chunk in
                     self?.notifyListeners("textChunk", data: [
                         "chatId": chatId,
                         "generationId": generationId,
                         "text": chunk
                     ])
-                }
+                })
                 call.resolve(["text": result.text, "generationId": result.generationId])
             } catch {
                 rejectCall(call, error)
@@ -230,12 +254,15 @@ public class LocalLLMPlugin: CAPPlugin, CAPBridgedPlugin, @unchecked Sendable {
         call.resolve(["status": LocalLLM.availability().rawValue])
     }
 
-    private func rejectImageInput(_ call: CAPPluginCall) throws {
-        guard call.options["imagePaths"] != nil else { return }
-        guard let paths = call.getArray("imagePaths") as? [String], paths.allSatisfy({ !$0.isEmpty }) else {
-            throw LocalLLMError.invalidOptions("imagePaths must be an array of non-empty strings")
-        }
-        if !paths.isEmpty { throw LocalLLMError.unsupported("image input") }
+    private func notifyGenerationState(
+        _ chatId: String,
+        _ generationId: String,
+        _ state: NativeGenerationState,
+        _ errorCode: String?
+    ) {
+        var data: JSObject = ["chatId": chatId, "generationId": generationId, "state": state.rawValue]
+        if let errorCode { data["errorCode"] = errorCode }
+        notifyListeners("generationStateChange", data: data)
     }
 
     private func requiredString(_ call: CAPPluginCall, _ name: String) throws -> String {

@@ -5,6 +5,65 @@
   gap: 16px;
 }
 
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 12px;
+  border: 1px solid var(--ion-color-light-shade, #d7d8da);
+  border-radius: 8px;
+}
+
+.control-group-label {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ion-color-medium-shade, #676767);
+}
+
+.image-file-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.image-file-name {
+  font-size: 14px;
+  word-break: break-all;
+}
+
+.acceptance-hint {
+  margin: 0;
+  color: var(--ion-color-medium-shade, #676767);
+  font-size: 14px;
+}
+
+.acceptance-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.acceptance-step {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.acceptance-step ion-chip {
+  min-width: 78px;
+  justify-content: center;
+  margin: 0;
+}
+
+.acceptance-step small {
+  display: block;
+  overflow-wrap: anywhere;
+  color: var(--ion-color-medium-shade, #676767);
+}
+
 .loading {
   display: flex;
   justify-content: center;

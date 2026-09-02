@@ -75,4 +75,102 @@ final class LocalLLMTests: XCTestCase {
         XCTAssertEqual(LocalLLM.mapAvailability(.unavailable(.appleIntelligenceNotEnabled)), .notEnabled)
         XCTAssertEqual(LocalLLM.mapAvailability(.unavailable(.modelNotReady)), .notReady)
     }
+
+    func testLocalImageURLValidationAndStableErrors() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let image = directory.appendingPathComponent("photo one.png")
+        let png = try XCTUnwrap(
+            Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=")
+        )
+        try png.write(to: image)
+        XCTAssertEqual(try validatedLocalImageURL(image.path), image)
+        XCTAssertEqual(try validatedLocalImageURL(image.absoluteString), image)
+        XCTAssertEqual(try decodedBase64Image(png.base64EncodedString()), png)
+        XCTAssertEqual(
+            try decodedBase64Image("data:image/png;base64,\(png.base64EncodedString())"),
+            png
+        )
+        XCTAssertThrowsError(try decodedBase64Image("not-base64")) { error in
+            XCTAssertEqual((error as? LocalLLMError)?.errorCode, "LOCAL_LLM_IMAGE_NOT_READABLE")
+        }
+
+        let corrupt = directory.appendingPathComponent("corrupt.png")
+        try Data([0x89, 0x50, 0x4E, 0x47]).write(to: corrupt)
+        XCTAssertThrowsError(try validatedLocalImageURL(corrupt.path)) { error in
+            XCTAssertEqual((error as? LocalLLMError)?.errorCode, "LOCAL_LLM_IMAGE_NOT_READABLE")
+        }
+
+        XCTAssertThrowsError(try validatedLocalImageURL("https://example.com/image.png")) { error in
+            XCTAssertEqual((error as? LocalLLMError)?.errorCode, "LOCAL_LLM_IMAGE_NOT_READABLE")
+        }
+
+        let oversized = directory.appendingPathComponent("oversized.png")
+        FileManager.default.createFile(atPath: oversized.path, contents: nil)
+        let handle = try FileHandle(forWritingTo: oversized)
+        try handle.truncate(atOffset: UInt64(ImageInputPolicy.maxFileBytes + 1))
+        try handle.close()
+        XCTAssertThrowsError(try validatedLocalImageURL(oversized.path)) { error in
+            XCTAssertEqual((error as? LocalLLMError)?.errorCode, "LOCAL_LLM_IMAGE_TOO_LARGE")
+        }
+    }
+
+    #if compiler(>=6.4)
+    @available(iOS 27.0, *)
+    func testVisionAvailabilityAndIOS27ErrorMapping() {
+        XCTAssertEqual(mapImageAnalysisAvailability(.available, supportsVision: true), .available)
+        XCTAssertEqual(mapImageAnalysisAvailability(.available, supportsVision: false), .unavailable)
+        XCTAssertEqual(
+            mapImageAnalysisAvailability(.unavailable(.modelNotReady), supportsVision: true),
+            .notReady
+        )
+
+        let contextError = LanguageModelError.contextSizeExceeded(
+            .init(contextSize: 10, tokenCount: 11, debugDescription: "too large")
+        )
+        let unsupportedError = LanguageModelError.unsupportedCapability(
+            .init(capability: .vision, debugDescription: "no vision")
+        )
+        let timeoutError = LanguageModelError.timeout(.init(debugDescription: "timeout"))
+
+        XCTAssertEqual(
+            (mapNativeGenerationError(contextError) as? LocalLLMError)?.errorCode,
+            "LOCAL_LLM_CONTEXT_WINDOW_EXCEEDED"
+        )
+        XCTAssertEqual(
+            (mapNativeGenerationError(unsupportedError) as? LocalLLMError)?.errorCode,
+            "LOCAL_LLM_UNSUPPORTED"
+        )
+        XCTAssertEqual(
+            (mapNativeGenerationError(timeoutError) as? LocalLLMError)?.errorCode,
+            "LOCAL_LLM_GENERATION_FAILED"
+        )
+        XCTAssertEqual(
+            (mapNativeGenerationError(LanguageModelSession.Error.concurrentRequests) as? LocalLLMError)?
+                .errorCode,
+            "LOCAL_LLM_CHAT_BUSY"
+        )
+    }
+
+    @available(iOS 26.0, *)
+    func testImageTurnRetainsOnlyPromptAndResponseText() throws {
+        let entries = appendingTextTurn(
+            to: [],
+            prompt: "Describe this",
+            response: "A landscape"
+        )
+        XCTAssertEqual(entries.count, 2)
+        guard case .prompt(let prompt) = entries[0],
+              case .text(let promptText) = prompt.segments.first,
+              case .response(let response) = entries[1],
+              case .text(let responseText) = response.segments.first else {
+            return XCTFail("Expected a text-only prompt and response")
+        }
+        XCTAssertEqual(promptText.content, "Describe this")
+        XCTAssertEqual(responseText.content, "A landscape")
+    }
+    #endif
 }

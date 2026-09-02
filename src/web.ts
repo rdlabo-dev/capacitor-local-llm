@@ -5,6 +5,7 @@ import type {
   GenerateImageResponse,
   GenerateTextResult,
   GetAvailabilityResult,
+  GetImageAnalysisAvailabilityResult,
   LocalLLMPlugin,
   PromptResponse,
   StreamTextResult,
@@ -18,6 +19,9 @@ export class LocalLLMWeb extends WebPlugin implements LocalLLMPlugin {
   }
 
   getAvailability(): Promise<GetAvailabilityResult> {
+    return this.unsupported();
+  }
+  getImageAnalysisAvailability(): Promise<GetImageAnalysisAvailabilityResult> {
     return this.unsupported();
   }
   downloadModel(): Promise<void> {

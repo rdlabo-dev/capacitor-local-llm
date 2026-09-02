@@ -16,6 +16,14 @@ sealed class LocalLLMError(message: String, val code: String, cause: Throwable? 
     class GenerationNotFound : LocalLLMError("Generation not found", "LOCAL_LLM_GENERATION_NOT_FOUND")
     class GenerationCancelled(cause: Throwable? = null) :
         LocalLLMError("Generation was cancelled", "LOCAL_LLM_GENERATION_CANCELLED", cause)
+    class ImageNotReadable(cause: Throwable? = null) :
+        LocalLLMError("The image could not be read", "LOCAL_LLM_IMAGE_NOT_READABLE", cause)
+    class ImageTooLarge(message: String? = null, cause: Throwable? = null) :
+        LocalLLMError(
+            message ?: "The image must not exceed ${ImageInputPolicy.MAX_FILE_MEBIBYTES} MiB",
+            "LOCAL_LLM_IMAGE_TOO_LARGE",
+            cause
+        )
     class InvalidOptions(message: String) : LocalLLMError(message, "LOCAL_LLM_INVALID_OPTIONS")
     class Unsupported(feature: String) :
         LocalLLMError("$feature is not supported on Android", "LOCAL_LLM_UNSUPPORTED")

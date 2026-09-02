@@ -23,6 +23,15 @@ public enum LLMAvailability: String, Sendable {
     }
 }
 
+@available(iOS 26.0, *)
+func mapImageAnalysisAvailability(
+    _ availability: SystemLanguageModel.Availability,
+    supportsVision: Bool
+) -> LLMAvailability {
+    let mapped = LocalLLM.mapAvailability(availability)
+    return mapped == .available && !supportsVision ? .unavailable : mapped
+}
+
 public struct LLMOptions: Sendable {
     let temperature: Double?
     let topK: Int?
@@ -46,62 +55,33 @@ public struct TextGenerationResult: Sendable {
     let generationId: String
 }
 
-public enum LocalLLMError: LocalizedError, CustomNSError {
-    case notAvailable
-    case deviceNotEligible
-    case notEnabled
-    case modelNotReady
-    case downloadRequired
-    case contextWindowExceeded
-    case chatNotFound
-    case chatBusy
-    case generationNotFound
-    case generationCancelled
-    case invalidOptions(String)
-    case unsupported(String)
-    case missingParameter(String)
-    case imageGenerationFailed
+enum NativeGenerationState: String, Sendable {
+    case started, completed, cancelled, failed
+}
 
-    public var errorCode: String {
-        switch self {
-        case .notAvailable: return "LOCAL_LLM_NOT_AVAILABLE"
-        case .deviceNotEligible: return "LOCAL_LLM_DEVICE_NOT_ELIGIBLE"
-        case .notEnabled: return "LOCAL_LLM_NOT_ENABLED"
-        case .modelNotReady: return "LOCAL_LLM_MODEL_NOT_READY"
-        case .downloadRequired: return "LOCAL_LLM_MODEL_DOWNLOAD_REQUIRED"
-        case .contextWindowExceeded: return "LOCAL_LLM_CONTEXT_WINDOW_EXCEEDED"
-        case .chatNotFound: return "LOCAL_LLM_CHAT_NOT_FOUND"
-        case .chatBusy: return "LOCAL_LLM_CHAT_BUSY"
-        case .generationNotFound: return "LOCAL_LLM_GENERATION_NOT_FOUND"
-        case .generationCancelled: return "LOCAL_LLM_GENERATION_CANCELLED"
-        case .invalidOptions, .missingParameter: return "LOCAL_LLM_INVALID_OPTIONS"
-        case .unsupported: return "LOCAL_LLM_UNSUPPORTED"
-        case .imageGenerationFailed: return "LOCAL_LLM_IMAGE_GENERATION_FAILED"
-        }
-    }
+typealias GenerationStateHandler = @Sendable (String, NativeGenerationState, String?) -> Void
 
-    public var errorDescription: String? {
-        switch self {
-        case .notAvailable: return "The on-device language model is unavailable"
-        case .deviceNotEligible: return "This device is not eligible for Apple Intelligence"
-        case .notEnabled: return "Apple Intelligence is not enabled"
-        case .modelNotReady: return "The on-device language model is not ready"
-        case .downloadRequired: return "The on-device language model must be downloaded"
-        case .contextWindowExceeded: return "The chat context window was exceeded"
-        case .chatNotFound: return "Chat not found"
-        case .chatBusy: return "A generation is already running for this chat"
-        case .generationNotFound: return "Generation not found"
-        case .generationCancelled: return "Generation was cancelled"
-        case .invalidOptions(let message): return message
-        case .unsupported(let feature): return "\(feature) is not supported on iOS"
-        case .missingParameter(let name): return "\(name) is required"
-        case .imageGenerationFailed: return "Image generation failed"
-        }
-    }
+@available(iOS 26.0, *)
+private struct GenerationExecution: Sendable {
+    let onState: GenerationStateHandler
+    let operation: @Sendable (LanguageModelSession, GenerationOptions, String) async throws -> String
+}
 
-    public var errorUserInfo: [String: Any] {
-        [NSLocalizedDescriptionKey: errorDescription ?? ""]
-    }
+@available(iOS 26.0, *)
+private func nativeGenerationOptions(_ options: LLMOptions?) -> GenerationOptions {
+    #if compiler(>=6.4)
+    GenerationOptions(
+        samplingMode: options?.topK.map { .random(top: $0) },
+        temperature: options?.temperature,
+        maximumResponseTokens: options?.maxOutputTokens
+    )
+    #else
+    GenerationOptions(
+        sampling: options?.topK.map { .random(top: $0) },
+        temperature: options?.temperature,
+        maximumResponseTokens: options?.maxOutputTokens
+    )
+    #endif
 }
 
 final class ChatOwnershipStore {
@@ -146,23 +126,34 @@ final class GenerationSlot {
 }
 
 public actor LocalLLM {
-    @available(iOS 26.0, *)
-    private final class Chat {
-        var session: LanguageModelSession
-        let generation = GenerationSlot()
-        let limits: HistoryLimits
-
-        init(instructions: String?, limits: HistoryLimits) {
-            session = LanguageModelSession(instructions: instructions)
-            self.limits = limits
-        }
-    }
+    static let maxImagesPerGeneration = 4
 
     private let chats = ChatOwnershipStore()
 
     static func availability() -> LLMAvailability {
         guard #available(iOS 26.0, *) else { return .deviceNotEligible }
         return mapAvailability(SystemLanguageModel.default.availability)
+    }
+
+    static func imageAnalysisAvailability() -> LLMAvailability {
+        #if compiler(>=6.4)
+        guard #available(iOS 27.0, *) else { return .deviceNotEligible }
+        return mapImageAnalysisAvailability(
+            SystemLanguageModel.default.availability,
+            supportsVision: imageAnalysisSupportsVision()
+        )
+        #else
+        return .unavailable
+        #endif
+    }
+
+    static func imageAnalysisSupportsVision() -> Bool {
+        #if compiler(>=6.4)
+        guard #available(iOS 27.0, *) else { return false }
+        return SystemLanguageModel.default.capabilities.contains(.vision)
+        #else
+        return false
+        #endif
     }
 
     @available(iOS 26.0, *)
@@ -187,59 +178,77 @@ public actor LocalLLM {
         id: String = UUID().uuidString
     ) throws -> String {
         guard #available(iOS 26.0, *) else { throw LocalLLMError.unsupported("text chat") }
-        chats.insert(Chat(instructions: instructions, limits: try limits ?? HistoryLimits()), id: id)
+        chats.insert(NativeChat(instructions: instructions, limits: try limits ?? HistoryLimits()), id: id)
         return id
     }
 
     func deleteChat(_ id: String) throws {
         guard #available(iOS 26.0, *) else { throw LocalLLMError.unsupported("text chat") }
-        let chat: Chat = try chats.value(for: id)
+        let chat: NativeChat = try chats.value(for: id)
         try? chat.generation.cancel(requestedId: nil)
         _ = try chats.remove(id)
     }
 
     func warmup(chatId: String, promptPrefix: String?) throws {
         guard #available(iOS 26.0, *) else { throw LocalLLMError.unsupported("text generation") }
-        let chat: Chat = try chats.value(for: chatId)
+        let chat: NativeChat = try chats.value(for: chatId)
         try checkAvailability()
         chat.session.prewarm(promptPrefix: .init(promptPrefix))
     }
 
-    func generateText(chatId: String, prompt: String, options: LLMOptions?) async throws -> TextGenerationResult {
+    func generateText(
+        chatId: String,
+        prompt: String,
+        options: LLMOptions?,
+        imageURLs: [URL] = [],
+        onState: @escaping GenerationStateHandler = { _, _, _ in }
+    ) async throws -> TextGenerationResult {
         guard #available(iOS 26.0, *) else { throw LocalLLMError.unsupported("text generation") }
-        return try await runGeneration(chatId: chatId, prompt: prompt, options: options) { session, nativeOptions, _ in
-            try await session.respond(to: prompt, options: nativeOptions).content
-        }
+        let nativePrompt = try makePrompt(text: prompt, imageURLs: imageURLs)
+        return try await runGeneration(
+            chatId: chatId,
+            prompt: prompt,
+            imageCount: imageURLs.count,
+            options: options,
+            execution: GenerationExecution(onState: onState) { session, nativeOptions, _ in
+                try await session.respond(to: nativePrompt, options: nativeOptions).content
+            }
+        )
     }
 
     func streamText(
         chatId: String,
         prompt: String,
         options: LLMOptions?,
+        imageURLs: [URL] = [],
+        onState: @escaping GenerationStateHandler = { _, _, _ in },
         onChunk: @escaping @Sendable (String, String) -> Void
     ) async throws -> TextGenerationResult {
         guard #available(iOS 26.0, *) else { throw LocalLLMError.unsupported("text generation") }
+        let nativePrompt = try makePrompt(text: prompt, imageURLs: imageURLs)
         return try await runGeneration(
             chatId: chatId,
             prompt: prompt,
-            options: options
-        ) { session, nativeOptions, generationId in
-            var accumulated = ""
-            for try await snapshot in session.streamResponse(to: prompt, options: nativeOptions) {
-                let current = snapshot.content
-                let chunk = current.hasPrefix(accumulated) ? String(current.dropFirst(accumulated.count)) : current
-                accumulated = current
-                if !chunk.isEmpty {
-                    onChunk(generationId, chunk)
+            imageCount: imageURLs.count,
+            options: options,
+            execution: GenerationExecution(onState: onState) { session, nativeOptions, generationId in
+                var accumulated = ""
+                for try await snapshot in session.streamResponse(to: nativePrompt, options: nativeOptions) {
+                    let current = snapshot.content
+                    let chunk = current.hasPrefix(accumulated) ? String(current.dropFirst(accumulated.count)) : current
+                    accumulated = current
+                    if !chunk.isEmpty {
+                        onChunk(generationId, chunk)
+                    }
                 }
+                return accumulated
             }
-            return accumulated
-        }
+        )
     }
 
     func cancelGeneration(chatId: String, generationId: String?) throws {
         guard #available(iOS 26.0, *) else { throw LocalLLMError.unsupported("text generation") }
-        let chat: Chat = try chats.value(for: chatId)
+        let chat: NativeChat = try chats.value(for: chatId)
         try chat.generation.cancel(requestedId: generationId)
     }
 
@@ -264,53 +273,89 @@ public actor LocalLLM {
     private func runGeneration(
         chatId: String,
         prompt: String,
+        imageCount: Int,
         options: LLMOptions?,
-        operation: @escaping @Sendable (LanguageModelSession, GenerationOptions, String) async throws -> String
+        execution: GenerationExecution
     ) async throws -> TextGenerationResult {
         try checkAvailability()
         try options?.validate()
-        let chat: Chat = try chats.value(for: chatId)
+        let chat: NativeChat = try chats.value(for: chatId)
         guard chat.generation.task == nil else { throw LocalLLMError.chatBusy }
 
         trimHistory(
             chat,
-            reservedCharacters: prompt.count + (options?.maxOutputTokens ?? HistoryLimits.defaultReservedOutputCharacters),
+            reservedCharacters: prompt.count
+                + imageCount * HistoryLimits.reservedCharactersPerImage
+                + (options?.maxOutputTokens ?? HistoryLimits.defaultReservedOutputCharacters),
             contextSize: SystemLanguageModel.default.contextSize
         )
 
         let generationId = UUID().uuidString
-        let nativeOptions = GenerationOptions(
-            sampling: options?.topK.map { .random(top: $0) },
-            temperature: options?.temperature,
-            maximumResponseTokens: options?.maxOutputTokens
-        )
+        let nativeOptions = nativeGenerationOptions(options)
         let session = chat.session
-        let task = Task.detached { try await operation(session, nativeOptions, generationId) }
+        let transcriptBeforeGeneration = session.transcript
+        let task = Task.detached { try await execution.operation(session, nativeOptions, generationId) }
         try chat.generation.begin(id: generationId, task: task)
+        execution.onState(generationId, .started, nil)
 
         do {
             let text = try await task.value
             if task.isCancelled { throw CancellationError() }
+            if imageCount > 0 {
+                let entries = appendingTextTurn(
+                    to: Array(transcriptBeforeGeneration), prompt: prompt, response: text
+                )
+                chat.replaceSession(transcript: Transcript(entries: entries))
+            }
             trimHistory(chat)
             finishGeneration(chatId: chatId, generationId: generationId)
+            execution.onState(generationId, .completed, nil)
             return TextGenerationResult(text: text, generationId: generationId)
         } catch is CancellationError {
+            chat.replaceSession(transcript: transcriptBeforeGeneration)
             finishGeneration(chatId: chatId, generationId: generationId)
+            execution.onState(generationId, .cancelled, LocalLLMError.generationCancelled.errorCode)
             throw LocalLLMError.generationCancelled
         } catch {
+            chat.replaceSession(transcript: transcriptBeforeGeneration)
             finishGeneration(chatId: chatId, generationId: generationId)
-            throw mapGenerationError(error)
+            let mapped = mapNativeGenerationError(error)
+            let code = (mapped as? LocalLLMError)?.errorCode ?? "LOCAL_LLM_UNKNOWN_ERROR"
+            execution.onState(generationId, .failed, code)
+            throw mapped
         }
     }
 
     @available(iOS 26.0, *)
     private func finishGeneration(chatId: String, generationId: String) {
-        guard let chat: Chat = try? chats.value(for: chatId) else { return }
+        guard let chat: NativeChat = try? chats.value(for: chatId) else { return }
         chat.generation.finish(id: generationId)
     }
 
     @available(iOS 26.0, *)
-    private func trimHistory(_ chat: Chat, reservedCharacters: Int = 0, contextSize: Int? = nil) {
+    private func makePrompt(text: String, imageURLs: [URL]) throws -> Prompt {
+        guard !imageURLs.isEmpty else { return Prompt(text) }
+        guard imageURLs.count <= Self.maxImagesPerGeneration else {
+            throw LocalLLMError.invalidOptions("at most \(Self.maxImagesPerGeneration) image(s) can be supplied")
+        }
+        #if compiler(>=6.4)
+        if #available(iOS 27.0, *) {
+            guard Self.imageAnalysisSupportsVision() else {
+                throw LocalLLMError.unsupported("image input")
+            }
+            return Prompt {
+                text
+                for (index, url) in imageURLs.enumerated() {
+                    Attachment(imageURL: url).label("image-\(index)")
+                }
+            }
+        }
+        #endif
+        throw LocalLLMError.unsupported("image input")
+    }
+
+    @available(iOS 26.0, *)
+    private func trimHistory(_ chat: NativeChat, reservedCharacters: Int = 0, contextSize: Int? = nil) {
         let originalEntries = Array(chat.session.transcript)
         let entries = trimmedTranscriptEntries(
             originalEntries,
@@ -319,7 +364,7 @@ public actor LocalLLM {
             contextSize: contextSize
         )
         if entries.count != originalEntries.count {
-            chat.session = LanguageModelSession(transcript: Transcript(entries: entries))
+            chat.replaceSession(transcript: Transcript(entries: entries))
         }
     }
 
@@ -331,17 +376,6 @@ public actor LocalLLM {
         case .notReady, .downloading: throw LocalLLMError.modelNotReady
         case .downloadable: throw LocalLLMError.downloadRequired
         case .unavailable: throw LocalLLMError.notAvailable
-        }
-    }
-
-    @available(iOS 26.0, *)
-    private func mapGenerationError(_ error: Error) -> Error {
-        guard let generationError = error as? LanguageModelSession.GenerationError else { return error }
-        switch generationError {
-        case .concurrentRequests: return LocalLLMError.chatBusy
-        case .exceededContextWindowSize: return LocalLLMError.contextWindowExceeded
-        case .assetsUnavailable: return LocalLLMError.modelNotReady
-        default: return generationError
         }
     }
 

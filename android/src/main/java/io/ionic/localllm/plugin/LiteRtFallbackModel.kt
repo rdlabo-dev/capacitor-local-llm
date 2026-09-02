@@ -1,8 +1,6 @@
 package io.ionic.localllm.plugin
 
 import android.content.Context
-import android.net.Uri
-import android.webkit.MimeTypeMap
 import com.google.ai.edge.litertlm.Backend
 import com.google.ai.edge.litertlm.Content
 import com.google.ai.edge.litertlm.Contents
@@ -12,14 +10,10 @@ import com.google.ai.edge.litertlm.EngineConfig
 import com.google.ai.edge.litertlm.Message
 import com.google.ai.edge.litertlm.SamplerConfig
 import java.io.File
-import java.io.InputStream
-import java.io.OutputStream
 import java.net.URI
 import java.security.MessageDigest
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.withContext
 
@@ -69,7 +63,8 @@ internal class LiteRtFallbackModel(private val context: Context) {
         private set
 
     @Volatile
-    private var maxImages = FallbackModelOptions.DEFAULT_MAX_IMAGES
+    var maxImages = FallbackModelOptions.DEFAULT_MAX_IMAGES
+        private set
 
     val isReady: Boolean
         get() = engine != null
@@ -155,12 +150,8 @@ internal class LiteRtFallbackModel(private val context: Context) {
             throw LocalLLMError.NotAvailable(error)
         }
         val response = StringBuilder()
-        val temporaryImageFiles = mutableListOf<File>()
         try {
-            val resolvedImagePaths = withContext(Dispatchers.IO) {
-                resolveImagePaths(imagePaths, temporaryImageFiles)
-            }
-            val contents = resolvedImagePaths.map { Content.ImageFile(it) } + Content.Text(prompt)
+            val contents = imagePaths.map { Content.ImageFile(it) } + Content.Text(prompt)
             conversation.sendMessageAsync(Contents.of(contents)).collect { message ->
                 val chunk = message.contents.contents
                     .filterIsInstance<Content.Text>()
@@ -180,7 +171,6 @@ internal class LiteRtFallbackModel(private val context: Context) {
             throw LocalLLMError.NotAvailable(error)
         } finally {
             runCatching { conversation.close() }
-            temporaryImageFiles.forEach(File::delete)
         }
     }
 
@@ -247,43 +237,6 @@ internal class LiteRtFallbackModel(private val context: Context) {
         return ResolvedModel(destination.absolutePath, staleFiles)
     }
 
-    private suspend fun resolveImagePaths(paths: List<String>, temporaryFiles: MutableList<File>): List<String> {
-        try {
-            return paths.map { path ->
-                if (path.startsWith(CONTENT_URI_PREFIX)) {
-                    val uri = Uri.parse(path)
-                    val extension = MimeTypeMap.getSingleton()
-                        .getExtensionFromMimeType(context.contentResolver.getType(uri))
-                        ?.let { ".$it" } ?: ".img"
-                    val temporary = File.createTempFile("image-", extension, context.cacheDir)
-                    temporaryFiles += temporary
-                    context.contentResolver.openInputStream(uri)?.use { input ->
-                        temporary.outputStream().use { output -> copyWithByteLimit(input, output) }
-                    } ?: throw LocalLLMError.InvalidOptions("image URI is not readable")
-                    temporary.absolutePath
-                } else {
-                    val file = resolveLocalFile(path, "image")
-                    if (!file.isAbsolute || !file.isFile || !file.canRead()) {
-                        throw LocalLLMError.InvalidOptions("image path must be a readable absolute file or content URI")
-                    }
-                    if (file.length() > MAX_IMAGE_BYTES) {
-                        throw LocalLLMError.InvalidOptions("image must not exceed $MAX_IMAGE_MEBIBYTES MiB")
-                    }
-                    file.absolutePath
-                }
-            }
-        } catch (error: CancellationException) {
-            temporaryFiles.forEach(File::delete)
-            throw error
-        } catch (error: LocalLLMError) {
-            temporaryFiles.forEach(File::delete)
-            throw error
-        } catch (_: Exception) {
-            temporaryFiles.forEach(File::delete)
-            throw LocalLLMError.InvalidOptions("image path or URI is not readable")
-        }
-    }
-
     companion object {
         private const val ANDROID_ASSET_PREFIX = "/android_asset/"
         private const val CONTENT_URI_PREFIX = "content://"
@@ -302,8 +255,6 @@ private const val FILE_URI_PREFIX = "file:"
 private const val URI_SCHEME_SEPARATOR = "://"
 private const val PROMPT_OVERHEAD_TOKENS = 64
 private const val TOKENS_PER_IMAGE = 512
-private const val MAX_IMAGE_MEBIBYTES = 32
-internal const val MAX_IMAGE_BYTES = MAX_IMAGE_MEBIBYTES * 1024L * 1024L
 
 internal fun estimateFallbackTokens(characterCount: Int, imageCount: Int, maxOutputTokens: Int): Int =
     characterCount + PROMPT_OVERHEAD_TOKENS + imageCount * TOKENS_PER_IMAGE + maxOutputTokens
@@ -333,19 +284,4 @@ internal fun resolveLocalFile(path: String, label: String): File = try {
     throw error
 } catch (_: Exception) {
     throw LocalLLMError.InvalidOptions("$label path is invalid")
-}
-
-internal suspend fun copyWithByteLimit(input: InputStream, output: OutputStream, maxBytes: Long = MAX_IMAGE_BYTES) {
-    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-    var copied = 0L
-    while (true) {
-        currentCoroutineContext().ensureActive()
-        val count = input.read(buffer)
-        if (count < 0) return
-        copied += count
-        if (copied > maxBytes) {
-            throw LocalLLMError.InvalidOptions("image must not exceed $MAX_IMAGE_MEBIBYTES MiB")
-        }
-        output.write(buffer, 0, count)
-    }
 }
