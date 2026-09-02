@@ -1,8 +1,8 @@
-import type { AvailabilityDefinitions } from './availability/index';
-import type { ChatDefinitions } from './chat/index';
-import type { EventsDefinitions } from './events/index';
-import type { ImageDefinitions } from './image/index';
-import type { LegacyDefinitions } from './legacy/index';
+import type { AvailabilityDefinitions } from './availability/availability-definitions.interface';
+import type { ChatDefinitions } from './chat/chat-definitions.interface';
+import type { EventsDefinitions } from './events/events-definitions.interface';
+import type { ImageDefinitions } from './image/image-definitions.interface';
+import type { LegacyDefinitions } from './legacy/legacy-definitions.interface';
 
 export * from './availability/index';
 export * from './chat/index';

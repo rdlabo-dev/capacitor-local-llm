@@ -13,7 +13,7 @@ Platform requirements and native project setup for iOS and Android. Related guid
 
 CocoaPods users need no additional configuration. Foundation Models and Image Playground are system frameworks available automatically on supported devices with Apple Intelligence enabled.
 
-For Capacitor projects using Swift Package Manager, the current Capacitor CLI generates `CapApp-SPM/Package.swift` with an iOS 18.0 deployment target and does not preserve the required minor version. After every `npx cap sync ios`, change its platform declaration to `platforms: [.iOS("18.4")]`. The included example app automates this with `npm run cap:sync`; see [`example-app/scripts/sync-capacitor.mjs`](../example-app/scripts/sync-capacitor.mjs) for the small, fail-fast wrapper.
+For Capacitor projects using Swift Package Manager, the current Capacitor CLI generates `CapApp-SPM/Package.swift` with an iOS 18.0 deployment target and does not preserve the required minor version. After every `npx cap sync ios`, change its platform declaration to `platforms: [.iOS("18.4")]`. The included example app automates this with `npm run cap:sync`; see [`example-app/scripts/sync-capacitor.mjs`](https://github.com/rdlabo-dev/capacitor-local-llm/blob/main/example-app/scripts/sync-capacitor.mjs) for the small, fail-fast wrapper.
 
 Call [`getAvailability()`](../README.md#getavailability) at runtime to check whether the text model is ready before creating chats or generating text. Check [`getImageAnalysisAvailability()`](../README.md#getimageanalysisavailability) separately before supplying images because text and vision availability can differ. See [Images](./images.md) for image analysis details.
 

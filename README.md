@@ -82,10 +82,6 @@ Method signatures are in the API section below.
 * [`generateText(...)`](#generatetext)
 * [`streamText(...)`](#streamtext)
 * [`cancelGeneration(...)`](#cancelgeneration)
-* [`systemAvailability()`](#systemavailability)
-* [`download()`](#download)
-* [`prompt(...)`](#prompt)
-* [`endSession(...)`](#endsession)
 * [`addListener('availabilityChange', ...)`](#addlisteneravailabilitychange-)
 * [`addListener('systemAvailabilityChange', ...)`](#addlistenersystemavailabilitychange-)
 * [`addListener('downloadProgress', ...)`](#addlistenerdownloadprogress-)
@@ -93,6 +89,10 @@ Method signatures are in the API section below.
 * [`addListener('generationStateChange', ...)`](#addlistenergenerationstatechange-)
 * [`removeAllListeners()`](#removealllisteners)
 * [`generateImage(...)`](#generateimage)
+* [`systemAvailability()`](#systemavailability)
+* [`download()`](#download)
+* [`prompt(...)`](#prompt)
+* [`endSession(...)`](#endsession)
 * [Interfaces](#interfaces)
 * [Type Aliases](#type-aliases)
 
@@ -276,62 +276,6 @@ Cancels an in-flight generation.
 --------------------
 
 
-### systemAvailability()
-
-```typescript
-systemAvailability() => Promise<SystemAvailabilityResponse>
-```
-
-**Returns:** <code>Promise&lt;<a href="#systemavailabilityresponse">SystemAvailabilityResponse</a>&gt;</code>
-
-**Since:** 1.0.0
-
---------------------
-
-
-### download()
-
-```typescript
-download() => Promise<void>
-```
-
-**Since:** 1.0.0
-
---------------------
-
-
-### prompt(...)
-
-```typescript
-prompt(options: PromptOptions) => Promise<PromptResponse>
-```
-
-| Param         | Type                                                    |
-| ------------- | ------------------------------------------------------- |
-| **`options`** | <code><a href="#promptoptions">PromptOptions</a></code> |
-
-**Returns:** <code>Promise&lt;<a href="#promptresponse">PromptResponse</a>&gt;</code>
-
-**Since:** 1.0.0
-
---------------------
-
-
-### endSession(...)
-
-```typescript
-endSession(options: EndSessionOptions) => Promise<void>
-```
-
-| Param         | Type                                                            |
-| ------------- | --------------------------------------------------------------- |
-| **`options`** | <code><a href="#endsessionoptions">EndSessionOptions</a></code> |
-
-**Since:** 1.0.0
-
---------------------
-
-
 ### addListener('availabilityChange', ...)
 
 ```typescript
@@ -456,6 +400,62 @@ Generates PNG images on iOS.
 | **`options`** | <code><a href="#generateimageoptions">GenerateImageOptions</a></code> |
 
 **Returns:** <code>Promise&lt;<a href="#generateimageresponse">GenerateImageResponse</a>&gt;</code>
+
+**Since:** 1.0.0
+
+--------------------
+
+
+### systemAvailability()
+
+```typescript
+systemAvailability() => Promise<SystemAvailabilityResponse>
+```
+
+**Returns:** <code>Promise&lt;<a href="#systemavailabilityresponse">SystemAvailabilityResponse</a>&gt;</code>
+
+**Since:** 1.0.0
+
+--------------------
+
+
+### download()
+
+```typescript
+download() => Promise<void>
+```
+
+**Since:** 1.0.0
+
+--------------------
+
+
+### prompt(...)
+
+```typescript
+prompt(options: PromptOptions) => Promise<PromptResponse>
+```
+
+| Param         | Type                                                    |
+| ------------- | ------------------------------------------------------- |
+| **`options`** | <code><a href="#promptoptions">PromptOptions</a></code> |
+
+**Returns:** <code>Promise&lt;<a href="#promptresponse">PromptResponse</a>&gt;</code>
+
+**Since:** 1.0.0
+
+--------------------
+
+
+### endSession(...)
+
+```typescript
+endSession(options: EndSessionOptions) => Promise<void>
+```
+
+| Param         | Type                                                            |
+| ------------- | --------------------------------------------------------------- |
+| **`options`** | <code><a href="#endsessionoptions">EndSessionOptions</a></code> |
 
 **Since:** 1.0.0
 
@@ -611,56 +611,18 @@ Options for cancelling an in-flight generation.
 | **`generationId`** | <code>string</code> | Optional generation identifier; a mismatch is treated as not found. | 2.0.0 |
 
 
-#### SystemAvailabilityResponse
-
-| Prop         | Type                                                        | Description                                                                                  | Since |
-| ------------ | ----------------------------------------------------------- | -------------------------------------------------------------------------------------------- | ----- |
-| **`status`** | <code><a href="#llmavailability">LLMAvailability</a></code> | Legacy availability value. Detailed states are folded into the original four-value contract. | 1.0.0 |
-
-
-#### PromptResponse
-
-Legacy prompt response.
-
-| Prop       | Type                | Description              | Since |
-| ---------- | ------------------- | ------------------------ | ----- |
-| **`text`** | <code>string</code> | Complete generated text. | 1.0.0 |
-
-
-#### PromptOptions
-
-Legacy prompt options.
-
-| Prop               | Type                                              | Description                                                 | Since |
-| ------------------ | ------------------------------------------------- | ----------------------------------------------------------- | ----- |
-| **`sessionId`**    | <code>string</code>                               | Optional legacy session identifier.                         | 1.0.0 |
-| **`instructions`** | <code>string</code>                               | Instructions used when the legacy session is first created. | 1.0.0 |
-| **`options`**      | <code><a href="#llmoptions">LLMOptions</a></code> | Legacy generation controls.                                 | 1.0.0 |
-| **`prompt`**       | <code>string</code>                               | User prompt.                                                | 1.0.0 |
-
-
-#### LLMOptions
-
-| Prop                      | Type                | Description               | Since |
-| ------------------------- | ------------------- | ------------------------- | ----- |
-| **`temperature`**         | <code>number</code> | Sampling temperature.     | 1.0.0 |
-| **`maximumOutputTokens`** | <code>number</code> | Maximum generated tokens. | 1.0.0 |
-
-
-#### EndSessionOptions
-
-Legacy session deletion options.
-
-| Prop            | Type                | Description                | Since |
-| --------------- | ------------------- | -------------------------- | ----- |
-| **`sessionId`** | <code>string</code> | Legacy session identifier. | 1.0.0 |
-
-
 #### PluginListenerHandle
 
 | Prop         | Type                                      |
 | ------------ | ----------------------------------------- |
 | **`remove`** | <code>() =&gt; Promise&lt;void&gt;</code> |
+
+
+#### SystemAvailabilityResponse
+
+| Prop         | Type                                                        | Description                                                                                  | Since |
+| ------------ | ----------------------------------------------------------- | -------------------------------------------------------------------------------------------- | ----- |
+| **`status`** | <code><a href="#llmavailability">LLMAvailability</a></code> | Legacy availability value. Detailed states are folded into the original four-value contract. | 1.0.0 |
 
 
 #### DownloadProgressEvent
@@ -717,6 +679,44 @@ Image generation options. Image generation is available only on iOS 18.4+.
 | **`count`**        | <code>number</code>   | Number of variations. Defaults to 1. | 1.0.0 |
 
 
+#### PromptResponse
+
+Legacy prompt response.
+
+| Prop       | Type                | Description              | Since |
+| ---------- | ------------------- | ------------------------ | ----- |
+| **`text`** | <code>string</code> | Complete generated text. | 1.0.0 |
+
+
+#### PromptOptions
+
+Legacy prompt options.
+
+| Prop               | Type                                              | Description                                                 | Since |
+| ------------------ | ------------------------------------------------- | ----------------------------------------------------------- | ----- |
+| **`sessionId`**    | <code>string</code>                               | Optional legacy session identifier.                         | 1.0.0 |
+| **`instructions`** | <code>string</code>                               | Instructions used when the legacy session is first created. | 1.0.0 |
+| **`options`**      | <code><a href="#llmoptions">LLMOptions</a></code> | Legacy generation controls.                                 | 1.0.0 |
+| **`prompt`**       | <code>string</code>                               | User prompt.                                                | 1.0.0 |
+
+
+#### LLMOptions
+
+| Prop                      | Type                | Description               | Since |
+| ------------------------- | ------------------- | ------------------------- | ----- |
+| **`temperature`**         | <code>number</code> | Sampling temperature.     | 1.0.0 |
+| **`maximumOutputTokens`** | <code>number</code> | Maximum generated tokens. | 1.0.0 |
+
+
+#### EndSessionOptions
+
+Legacy session deletion options.
+
+| Prop            | Type                | Description                | Since |
+| --------------- | ------------------- | -------------------------- | ----- |
+| **`sessionId`** | <code>string</code> | Legacy session identifier. | 1.0.0 |
+
+
 ### Type Aliases
 
 
@@ -755,11 +755,6 @@ Final result of a native streaming generation.
 <code><a href="#generatetextresult">GenerateTextResult</a></code>
 
 
-#### LLMAvailability
-
-<code>'available' | 'unavailable' | 'notready' | 'downloadable'</code>
-
-
 #### AvailabilityChangeListener
 
 Listener for availability changes.
@@ -770,6 +765,11 @@ Listener for availability changes.
 #### SystemAvailabilityChangeListener
 
 <code>(event: <a href="#systemavailabilityresponse">SystemAvailabilityResponse</a>): void</code>
+
+
+#### LLMAvailability
+
+<code>'available' | 'unavailable' | 'notready' | 'downloadable'</code>
 
 
 #### DownloadProgressListener
