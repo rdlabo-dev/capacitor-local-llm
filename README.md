@@ -18,156 +18,18 @@ npm install @rdlabo/capacitor-local-llm
 npx cap sync
 ```
 
-## Platform Requirements
+## Platform summary
 
-| Platform | Minimum OS | Notes |
-|----------|------------|-------|
-| iOS | **18.4** | Image generation requires iOS 18.4+. Text LLM requires iOS 26+. Image analysis uses Foundation Models `Attachment` on iOS 27+ when compiled with Xcode 27 / Swift 6.4. |
-| Android | **API 29 (Android 10)** | Gemini Nano via ML Kit requires a compatible physical device (e.g. Pixel 9+). |
+| Platform | Minimum OS              | Notes                                                                                                                                                                  |
+| -------- | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| iOS      | **18.4**                | Image generation requires iOS 18.4+. Text LLM requires iOS 26+. Image analysis uses Foundation Models `Attachment` on iOS 27+ when compiled with Xcode 27 / Swift 6.4. |
+| Android  | **API 29 (Android 10)** | Gemini Nano via ML Kit requires a compatible physical device (e.g. Pixel 9+).                                                                                          |
 
-## iOS Setup
+Native project setup (SPM deployment target, `minSdkVersion`, and model download) is in [Setup](docs/setup.md).
 
-CocoaPods users need no additional configuration. Foundation Models and Image Playground are system frameworks available automatically on supported devices with Apple Intelligence enabled.
+## Quick start
 
-For Capacitor projects using Swift Package Manager, the current Capacitor CLI generates `CapApp-SPM/Package.swift` with an iOS 18.0 deployment target and does not preserve the required minor version. After every `npx cap sync ios`, change its platform declaration to `platforms: [.iOS("18.4")]`. The included example app automates this with `npm run cap:sync`; see [`example-app/scripts/sync-capacitor.mjs`](example-app/scripts/sync-capacitor.mjs) for the small, fail-fast wrapper.
-
-Call [`getAvailability()`](#getavailability) at runtime to check whether the text model is ready before creating chats or generating text. Check [`getImageAnalysisAvailability()`](#getimageanalysisavailability) separately before supplying images because text and vision availability can differ.
-
-On iOS versions below 26, only `getAvailability()` reports `'device-not-eligible'` for the text LLM. Text and chat APIs such as `createChat()`, `deleteChat()`, `generateText()`, and `streamText()` reject with `LOCAL_LLM_UNSUPPORTED`. Image generation via `generateImage()` is available on iOS 18.4+.
-
-Image analysis uses native Foundation Models `Attachment` on iOS 27+ when the plugin is compiled with Xcode 27 / Swift 6.4. Each `images[]` item accepts either a readable local `uri` (`content://` is Android-only) or raw Base64 / a Base64 data URL. Up to 4 images are accepted, each limited to 32 MiB after decoding. Base64 inputs are converted to bounded temporary native files and removed after generation. On iOS 27 builds, `getImageAnalysisAvailability()` returns the text-model `status` plus `backend: 'foundation-models'` and `maxImages: 4`; builds made with older Xcode report `unavailable` and cannot include iOS 27 vision support. After a successful generation, image attachments are removed from retained chat history while the text prompt and response remain.
-
-[`downloadModel()`](#downloadmodel) is not available on iOS — the OS manages the model. Use `getAvailability()` or the `availabilityChange` event to observe readiness.
-
-## Android Setup
-
-The plugin's minimum Android SDK is **29**, higher than Capacitor's current default (24). Update `android/variables.gradle` in your application:
-
-```gradle
-ext {
-    minSdkVersion = 29
-}
-```
-
-Gemini Nano is distributed via Google Play Services and must be downloaded to the device before use. The model is not bundled with your app.
-
-### Check availability and download
-
-Call [`getAvailability()`](#getavailability) to inspect the current state. If the status is `downloadable`, start the download with [`downloadModel()`](#downloadmodel) and listen for `downloadProgress` and/or `availabilityChange` until the status becomes `available`.
-
-```typescript
-import { LocalLLM } from '@rdlabo/capacitor-local-llm';
-
-const availabilityListener = await LocalLLM.addListener('availabilityChange', ({ status }) => {
-  console.log('availability:', status);
-});
-
-const progressListener = await LocalLLM.addListener('downloadProgress', (event) => {
-  if (event.progress != null) {
-    console.log('download progress:', event.progress);
-  } else if (event.downloadedBytes != null) {
-    console.log('downloaded bytes:', event.downloadedBytes);
-  }
-});
-
-const { status } = await LocalLLM.getAvailability();
-
-if (status === 'downloadable') {
-  await LocalLLM.downloadModel();
-}
-
-await availabilityListener.remove();
-await progressListener.remove();
-```
-
-### Android fallback model (Gemini Nano unavailable)
-
-When ML Kit reports Gemini Nano unavailable (including devices without the required AICore feature), an app can explicitly configure a local [LiteRT-LM](https://github.com/google-ai-edge/LiteRT-LM) `.litertlm` model. Gemini Nano remains preferred for ordinary text generation whenever it is available. The plugin does not bundle or silently download model weights: the app owns the model file, its download UX, storage, updates, and license compliance.
-
-Fallback configuration is image-first and defaults `supportsImages` to `true`, as LiteRT-LM 0.16.1 does not expose stable modality introspection. Use a multimodal model, or pass `supportsImages: false` for a text-only model. The recommended starting point for image-capable apps is a model from the official [LiteRT multimodality collection](https://huggingface.co/collections/litert-community/multi-modality-models), such as Gemma 4 E2B. Be aware that Gemma 4 E2B is about 2.6 GB; model size and memory use must be evaluated on every supported device. A smaller LFM2.5-VL-450M conversion exists, but its model card documents a current vision-positioning defect, so it is not the default recommendation.
-
-```typescript
-// Rename the downloaded model as desired and either package it in android/app/src/main/assets
-// or provide a readable absolute app-managed file path.
-await LocalLLM.configureFallbackModel({
-  path: '/android_asset/gemma-4-E2B-it.litertlm',
-  maxTokens: 4096,
-  maxImages: 1,
-  // supportsImages defaults to true
-});
-
-const { id: chatId } = await LocalLLM.createChat({
-  instructions: 'Answer questions about the supplied image.',
-});
-
-const result = await LocalLLM.generateText({
-  chatId,
-  prompt: 'Describe this image concisely.',
-  images: [{ uri: 'content://com.example.files/photo.jpg' }],
-});
-```
-
-Each `images[]` item accepts exactly one of `uri` or `base64`. Android URI input accepts readable absolute paths, decoded `file://` URLs without an authority, and `content://` URIs. Base64 input accepts raw encoded bytes or a `data:image/...;base64,...` URL. The deprecated `imagePaths` option remains for compatibility and retains its v2.0 behavior of routing only to a configured LiteRT-LM fallback, even when ML Kit is available; do not pass both options. Each decoded image is limited to 32 MiB. Content URIs and Base64 inputs are converted on an I/O dispatcher to bounded temporary app cache files and removed after generation. Images apply only to the current turn and are not retained in chat history.
-
-Call `getImageAnalysisAvailability()` before image input. Android treats ML Kit Prompt's common `available` status as availability for its documented image-input API and prefers that backend; otherwise it uses a configured image-capable LiteRT-LM fallback. ML Kit decodes images through Android APIs and bounds preprocessing to a 2048-pixel longest edge and roughly 4 megapixels per image, with a maximum of 4 images and roughly 8 megapixels in total per request. Consequently, `maxImages: 4` is only a count limit and four large images can still exceed the aggregate pixel budget. LiteRT-LM receives the resolved file directly. A text-only fallback rejects image input with `LOCAL_LLM_UNSUPPORTED` rather than silently ignoring it.
-
-The ML Kit multi-image path is experimental until it has completed physical-device acceptance testing on a compatible Gemini Nano device. Do not treat ML Kit image analysis as production-ready solely from `getImageAnalysisAvailability()`; validate generate/stream, cancellation, multiple images, content URI cleanup, and oversized-image errors on every supported device family.
-
-Prefer an app-managed absolute model path for large models. `/android_asset/...` is supported for convenience, but the plugin must copy that asset to private app files because the native engine needs a real path. It reuses the versioned private copy within the same app version, closes the old engine on reconfiguration, and removes older copies of the same asset after a successful new initialization. During an app upgrade, peak storage can temporarily include the packaged asset, the previous private copy, and the new temporary copy. The active engine remains loaded for the plugin lifetime; app-managed files must not be replaced or deleted until the plugin is destroyed or another model is successfully configured.
-
-The fallback uses LiteRT-LM's structured messages, native streaming flow, and cancellation API. It currently runs the text and vision pipelines on CPU for broad compatibility and serializes generation, configuration, warmup, download, and teardown through the same plugin mutex. `downloadModel()` continues to manage only the ML Kit system model. LiteRT-LM is evolving quickly, so treat the fallback as opt-in and perform physical-device soak tests before release.
-
-The Android dependency pins `kotlinx-coroutines` 1.11.0 because the LiteRT-LM 0.16.1 binary uses the newer `SendChannel` default-method ABI while its published POM still declares 1.9.0. Removing or downgrading that pin causes a `NoSuchMethodError` when native streaming completes; see upstream [LiteRT-LM issue #2812](https://github.com/google-ai-edge/LiteRT-LM/issues/2812).
-
-The model is opt-in, but the LiteRT-LM runtime dependency is included in every Android consumer. Version 0.16.1 adds an AAR of roughly 20 MB compressed and native libraries of roughly 22 MB per arm64 build (universal debug APKs are larger; Android App Bundles normally split by ABI). Review final APK/AAB size and supported 64-bit ABIs. LiteRT-LM is Apache-2.0; model weights have separate licenses and usage terms. Preserve the runtime's `LICENSE` and `THIRD_PARTY_NOTICE.txt` in your app's OSS notices and review the selected model's terms independently.
-
-## Availability
-
-[`getAvailability()`](#getavailability) returns a semantic `status` value:
-
-| Status | Meaning |
-|--------|---------|
-| `available` | The text model is ready for generation. |
-| `device-not-eligible` | The device or OS version does not support the on-device text model. iOS reports this precisely; Android's `FeatureStatus.UNAVAILABLE` does not expose a reason and maps to `unavailable`. |
-| `not-enabled` | The device supports on-device AI but the user has not enabled it (e.g. Apple Intelligence is off). Primarily reported on iOS. |
-| `downloadable` | The model can be downloaded (Android). |
-| `downloading` | A model download is in progress (Android). |
-| `not-ready` | The model exists but is still initializing. |
-| `unavailable` | The model is unavailable for another reason. |
-
-Subscribe to `availabilityChange` (or the deprecated `systemAvailabilityChange` alias) to receive updates while listeners are registered. On Android the plugin polls while listeners are active.
-
-The deprecated `systemAvailability()` and `systemAvailabilityChange` fold detailed statuses into the original four-value contract: `available`, `unavailable`, `notready`, and `downloadable`. `downloading` and `not-ready` map to `notready`; `device-not-eligible`, `not-enabled`, and `unavailable` map to `unavailable`.
-
-## Platform Behavior
-
-### iOS
-
-- **Text LLM requires iOS 26 and Apple Intelligence.** Below iOS 26, availability is reported as `device-not-eligible`. Only select iPhones (iPhone 15 Pro or later) and iPads support Apple Intelligence. [More information here](https://www.apple.com/apple-intelligence/).
-- **Image analysis uses Foundation Models `Attachment` on iOS 27+** when built with Xcode 27 / Swift 6.4. `getImageAnalysisAvailability()` returns the text-model status with `backend: 'foundation-models'` and `maxImages: 4`. Builds made with older Xcode report `unavailable` and cannot include vision support. Check it independently before attaching images. After a successful generation, attachments are stripped from retained chat history; the text prompt and response remain.
-- **Chats use the native Foundation Models transcript.** Conversation state lives in `LanguageModelSession`. Before generation, the plugin also applies a conservative character budget against the model's native `contextSize`, including instructions, the current prompt, and output headroom. When any limit is exceeded, it drops the oldest complete prompt/response turns, preserves instructions, and recreates the session.
-- **`warmup({ chatId, promptPrefix })` prewarms a specific chat** created with `createChat()`.
-- **`cancelGeneration()` cancels the in-flight `Task`** for the chat. The `streamText()` / `generateText()` promise rejects with `LOCAL_LLM_GENERATION_CANCELLED`; any text already streamed via `textChunk` remains in your UI.
-- **Image generation** is available on iOS 18.4+ via `generateImage()`.
-
-### Android
-
-- **Conversation history is structured in memory** by the plugin. Each chat stores user/assistant turns and trims by `history.maxMessages` (default **20**) and `history.maxCharacters` (default **12000**). Gemini Nano then uses ML Kit `countTokens()` to fit the context. LiteRT-LM uses a conservative one-character-per-token heuristic plus prompt and image reserves because version 0.16.1 has no stable token-count API. Both paths drop oldest whole turns; system instructions are stored separately and never trimmed. History does not persist across app restarts.
-- **`warmup()` warms the model globally** and ignores `chatId` / `promptPrefix`.
-- **`cancelGeneration()` is best-effort.** It cancels the plugin's coroutine; ML Kit may already have emitted partial output before cancellation completes. The promise rejects with `LOCAL_LLM_GENERATION_CANCELLED` when cancellation is observed.
-- **Unsupported `GenerationOptions` values are rejected** with `LOCAL_LLM_INVALID_OPTIONS`, not silently clamped. `maxOutputTokens` must be within `1..min(device token limit, 4096)`; when omitted, the plugin default is **256**.
-- **Native model operations run serially.** The plugin mutex protects Gemini Nano and LiteRT-LM generation, fallback configuration, warmup, download, and teardown, so concurrent generations in different chats are queued.
-- **Not all API 29+ devices support Gemini Nano.** The device must have a compatible on-device AI stack. [More information here](https://developers.google.com/ml-kit/genai#device-support).
-- **Apps may explicitly configure a LiteRT-LM fallback** when Gemini Nano is unavailable. Once initialization completes, `getAvailability()` reports `available`.
-- **Image analysis selects a native backend explicitly.** `getImageAnalysisAvailability()` reports `ml-kit-prompt` when ML Kit Prompt's common feature status is `available`, because that SDK status does not expose a separate vision-capability flag. It reports `litert-lm` when a configured vision fallback is ready.
-- **On-device models cannot be used while the app is in the background.** Inference requests made while backgrounded will fail.
-- **AICore enforces per-app inference quotas.** Excessive requests can return busy or quota errors from the underlying SDK — consider exponential backoff.
-
-## Usage
-
-### Chat lifecycle
-
-Create an owned chat, generate text against it, and delete it when finished. Each chat allows one in-flight generation at a time.
+After [Install](#install) and [Setup](docs/setup.md), check availability, create a chat, and generate text:
 
 ```typescript
 import { LocalLLM } from '@rdlabo/capacitor-local-llm';
@@ -179,169 +41,32 @@ if (status !== 'available') {
 
 const { id: chatId } = await LocalLLM.createChat({
   instructions: 'You are a helpful assistant.',
-  history: { maxMessages: 20, maxCharacters: 12000 }, // both platforms; iOS trims the Foundation Models transcript
 });
 
 const { text } = await LocalLLM.generateText({
   chatId,
   prompt: 'What is the capital of France?',
-  options: { temperature: 0.2, maxOutputTokens: 256 },
 });
 
-const followUp = await LocalLLM.generateText({
-  chatId,
-  prompt: 'What is the population of that city?',
-});
-
-console.log(text, followUp.text);
+console.log(text);
 
 await LocalLLM.deleteChat({ id: chatId });
 ```
 
-### Streaming with `textChunk`
+Streaming, cancellation, and warmup: [Chat](docs/chat.md). Image input and generation: [Images](docs/images.md).
 
-`streamText()` emits incremental chunks through the `textChunk` event and resolves with the complete text when finished.
+## Documentation
 
-```typescript
-import { LocalLLM } from '@rdlabo/capacitor-local-llm';
+- [Setup](docs/setup.md) — platform requirements, iOS SPM target, Android `minSdkVersion`, and Gemini Nano download.
+- [Android fallback model](docs/android-fallback.md) — LiteRT-LM when Gemini Nano is unavailable.
+- [Availability](docs/availability.md) — status values and platform behavior.
+- [Chat](docs/chat.md) — chat lifecycle, streaming, cancellation, and warmup.
+- [Images](docs/images.md) — image analysis (iOS / Android) and image generation (iOS).
+- [Events](docs/events.md) — availability, download, chunk, and generation lifecycle events.
+- [Migration](docs/migration.md) — deprecated v1 APIs and upstream migration.
+- [Error Handling](docs/errors.md) — stable `LocalLLMErrorCode` values.
 
-const { id: chatId } = await LocalLLM.createChat();
-
-const chunkListener = await LocalLLM.addListener('textChunk', (event) => {
-  if (event.chatId !== chatId) return;
-  process.stdout.write(event.text); // newly generated text only
-});
-
-try {
-  const { text, generationId } = await LocalLLM.streamText({
-    chatId,
-    prompt: 'Summarize the theory of relativity in one paragraph.',
-  });
-  console.log('\ncomplete:', text, generationId);
-} finally {
-  await chunkListener.remove();
-  await LocalLLM.deleteChat({ id: chatId });
-}
-```
-
-### Cancel an in-flight generation
-
-```typescript
-import { LocalLLM } from '@rdlabo/capacitor-local-llm';
-
-const stateListener = await LocalLLM.addListener('generationStateChange', (event) => {
-  if (event.chatId === chatId && event.state === 'started') {
-    void LocalLLM.cancelGeneration({ chatId, generationId: event.generationId });
-  }
-});
-
-const streamPromise = LocalLLM.streamText({ chatId, prompt: 'Write a long essay.' });
-
-try {
-  await streamPromise;
-} catch (err) {
-  // LOCAL_LLM_GENERATION_CANCELLED on both platforms when cancellation is observed
-} finally {
-  await stateListener.remove();
-}
-```
-
-`generationStateChange` is emitted for both `generateText()` and `streamText()`. It reports `started` as soon as the native layer accepts a generation, before the first text chunk, followed by one terminal state: `completed`, `cancelled`, or `failed`. Use its `generationId` for deterministic cancellation. `deleteChat()` also cancels any active generation for that chat.
-
-### Reduce first-response latency with warmup
-
-```typescript
-import { LocalLLM } from '@rdlabo/capacitor-local-llm';
-
-const { id: chatId } = await LocalLLM.createChat({
-  instructions: 'You are a customer support agent for Acme Corp.',
-});
-
-// iOS: prewarm this chat. Android: global model warmup (chatId ignored).
-await LocalLLM.warmup({ chatId, promptPrefix: 'You are a customer support agent for Acme Corp.' });
-```
-
-### Image generation (iOS only)
-
-```typescript
-import { LocalLLM } from '@rdlabo/capacitor-local-llm';
-
-const { pngBase64Images } = await LocalLLM.generateImage({
-  prompt: 'A serene mountain lake at sunrise, photorealistic',
-  count: 2,
-});
-
-const src = `data:image/png;base64,${pngBase64Images[0]}`;
-```
-
-## Events
-
-| Event | Description |
-|-------|-------------|
-| `availabilityChange` | Fired when text-model availability changes while listeners are registered. |
-| `downloadProgress` | Fired during Android `downloadModel()`. Intermediate events may include only `downloadedBytes` because ML Kit does not expose a total byte count; `progress` is `0` at start and `1` on completion when known. |
-| `textChunk` | Fired during `streamText()` with incremental text for the matching `chatId` / `generationId`. |
-| `generationStateChange` | Fired for accepted text generations with `started`, then `completed`, `cancelled`, or `failed`. Terminal error events include a stable `errorCode`. |
-
-Remove listeners with the returned `PluginListenerHandle.remove()` or `removeAllListeners()`.
-
-## Deprecated compatibility APIs
-
-v1 APIs remain available but are deprecated in favor of explicit chat and availability methods:
-
-| Deprecated | Replacement |
-|------------|-------------|
-| `systemAvailability()` | `getAvailability()` |
-| `download()` | `downloadModel()` |
-| `prompt()` | `createChat()` + `generateText()` / `streamText()` |
-| `endSession()` | `deleteChat()` |
-| `addListener('systemAvailabilityChange', …)` | `addListener('availabilityChange', …)` |
-| `warmup({ sessionId })` | `warmup({ chatId })` |
-
-`systemAvailability()` and `systemAvailabilityChange` return the legacy four-value `LLMAvailability` contract (`available`, `unavailable`, `notready`, `downloadable`) by folding the detailed `Availability` statuses described above.
-
-`prompt()` without `sessionId` still performs a one-shot generation for backward compatibility.
-
-### Migrating from Ionic upstream v1
-
-This fork is not a complete drop-in replacement. Change the dependency and imports to `@rdlabo/capacitor-local-llm`, adopt `getAvailability()` and the explicit `createChat()` / `generateText()` / `deleteChat()` lifecycle, and handle the detailed status and stable error codes. The minimums are iOS 18.4 and Android API 29. Deprecated v1 entry points remain as a transition layer, including the original four availability values.
-
-## Error Handling
-
-Native Capacitor errors and the web stub expose a stable string `code` matching `LocalLLMErrorCode`. On web, failures throw `LocalLLMException`, which extends `Error` and sets `code`.
-
-```typescript
-import { LocalLLM, LocalLLMException } from '@rdlabo/capacitor-local-llm';
-
-try {
-  await LocalLLM.generateText({ chatId: 'missing', prompt: 'Hello' });
-} catch (err) {
-  const code = err instanceof LocalLLMException ? err.code : (err as { code?: string }).code;
-  console.log(code, (err as Error).message);
-}
-```
-
-### `LocalLLMErrorCode`
-
-| Code | Description |
-|------|-------------|
-| `LOCAL_LLM_NOT_AVAILABLE` | The on-device text model is unavailable. |
-| `LOCAL_LLM_DEVICE_NOT_ELIGIBLE` | The device or OS does not support on-device text generation. |
-| `LOCAL_LLM_NOT_ENABLED` | On-device AI is supported but not enabled by the user. |
-| `LOCAL_LLM_MODEL_NOT_READY` | The model is downloading or initializing (`downloading` / `not-ready`). |
-| `LOCAL_LLM_MODEL_DOWNLOAD_REQUIRED` | The model must be downloaded first (`downloadable`). |
-| `LOCAL_LLM_CONTEXT_WINDOW_EXCEEDED` | The prompt and requested output cannot fit even after removable history is trimmed. |
-| `LOCAL_LLM_CHAT_NOT_FOUND` | The `chatId` does not exist. |
-| `LOCAL_LLM_CHAT_BUSY` | A generation is already in progress for this chat. |
-| `LOCAL_LLM_GENERATION_NOT_FOUND` | No matching in-flight generation (or `generationId` mismatch). |
-| `LOCAL_LLM_GENERATION_CANCELLED` | The generation was cancelled via `cancelGeneration()` or `deleteChat()`. |
-| `LOCAL_LLM_INVALID_OPTIONS` | An option value is missing or out of range. |
-| `LOCAL_LLM_UNSUPPORTED` | The method or feature is not supported on this platform or OS version. |
-| `LOCAL_LLM_IMAGE_NOT_READABLE` | An image URI cannot be resolved, opened, or decoded. |
-| `LOCAL_LLM_IMAGE_TOO_LARGE` | An image exceeds the platform input-size policy. |
-| `LOCAL_LLM_GENERATION_FAILED` | Generation failed for a stable, platform-mapped reason. |
-| `LOCAL_LLM_IMAGE_GENERATION_FAILED` | Image generation failed (e.g. no available style). |
-| `LOCAL_LLM_UNKNOWN_ERROR` | An unexpected underlying SDK error. Check `message` for details. |
+Method signatures are in the API section below.
 
 ## API
 
@@ -357,7 +82,6 @@ try {
 * [`generateText(...)`](#generatetext)
 * [`streamText(...)`](#streamtext)
 * [`cancelGeneration(...)`](#cancelgeneration)
-* [`generateImage(...)`](#generateimage)
 * [`systemAvailability()`](#systemavailability)
 * [`download()`](#download)
 * [`prompt(...)`](#prompt)
@@ -368,6 +92,7 @@ try {
 * [`addListener('textChunk', ...)`](#addlistenertextchunk-)
 * [`addListener('generationStateChange', ...)`](#addlistenergenerationstatechange-)
 * [`removeAllListeners()`](#removealllisteners)
+* [`generateImage(...)`](#generateimage)
 * [Interfaces](#interfaces)
 * [Type Aliases](#type-aliases)
 
@@ -551,25 +276,6 @@ Cancels an in-flight generation.
 --------------------
 
 
-### generateImage(...)
-
-```typescript
-generateImage(options: GenerateImageOptions) => Promise<GenerateImageResponse>
-```
-
-Generates PNG images on iOS.
-
-| Param         | Type                                                                  |
-| ------------- | --------------------------------------------------------------------- |
-| **`options`** | <code><a href="#generateimageoptions">GenerateImageOptions</a></code> |
-
-**Returns:** <code>Promise&lt;<a href="#generateimageresponse">GenerateImageResponse</a>&gt;</code>
-
-**Since:** 1.0.0
-
---------------------
-
-
 ### systemAvailability()
 
 ```typescript
@@ -737,6 +443,25 @@ Removes every plugin listener.
 --------------------
 
 
+### generateImage(...)
+
+```typescript
+generateImage(options: GenerateImageOptions) => Promise<GenerateImageResponse>
+```
+
+Generates PNG images on iOS.
+
+| Param         | Type                                                                  |
+| ------------- | --------------------------------------------------------------------- |
+| **`options`** | <code><a href="#generateimageoptions">GenerateImageOptions</a></code> |
+
+**Returns:** <code>Promise&lt;<a href="#generateimageresponse">GenerateImageResponse</a>&gt;</code>
+
+**Since:** 1.0.0
+
+--------------------
+
+
 ### Interfaces
 
 
@@ -886,26 +611,6 @@ Options for cancelling an in-flight generation.
 | **`generationId`** | <code>string</code> | Optional generation identifier; a mismatch is treated as not found. | 2.0.0 |
 
 
-#### GenerateImageResponse
-
-Image generation result.
-
-| Prop                  | Type                  | Description                                      | Since |
-| --------------------- | --------------------- | ------------------------------------------------ | ----- |
-| **`pngBase64Images`** | <code>string[]</code> | Raw base64 PNG images without a data-URI prefix. | 1.0.0 |
-
-
-#### GenerateImageOptions
-
-Image generation options. Image generation is available only on iOS 18.4+.
-
-| Prop               | Type                  | Description                          | Since |
-| ------------------ | --------------------- | ------------------------------------ | ----- |
-| **`prompt`**       | <code>string</code>   | Image description.                   | 1.0.0 |
-| **`promptImages`** | <code>string[]</code> | Optional base64 reference images.    | 1.0.0 |
-| **`count`**        | <code>number</code>   | Number of variations. Defaults to 1. | 1.0.0 |
-
-
 #### SystemAvailabilityResponse
 
 | Prop         | Type                                                        | Description                                                                                  | Since |
@@ -990,6 +695,26 @@ Lifecycle event emitted for both `generateText()` and `streamText()`.
 | **`generationId`** | <code>string</code>                                             | Native generation identifier, available from the `started` event. | 2.1.0 |
 | **`state`**        | <code><a href="#generationstate">GenerationState</a></code>     | Current lifecycle state.                                          | 2.1.0 |
 | **`errorCode`**    | <code><a href="#localllmerrorcode">LocalLLMErrorCode</a></code> | Stable error code for `cancelled` and `failed` states.            | 2.1.0 |
+
+
+#### GenerateImageResponse
+
+Image generation result.
+
+| Prop                  | Type                  | Description                                      | Since |
+| --------------------- | --------------------- | ------------------------------------------------ | ----- |
+| **`pngBase64Images`** | <code>string[]</code> | Raw base64 PNG images without a data-URI prefix. | 1.0.0 |
+
+
+#### GenerateImageOptions
+
+Image generation options. Image generation is available only on iOS 18.4+.
+
+| Prop               | Type                  | Description                          | Since |
+| ------------------ | --------------------- | ------------------------------------ | ----- |
+| **`prompt`**       | <code>string</code>   | Image description.                   | 1.0.0 |
+| **`promptImages`** | <code>string[]</code> | Optional base64 reference images.    | 1.0.0 |
+| **`count`**        | <code>number</code>   | Number of variations. Defaults to 1. | 1.0.0 |
 
 
 ### Type Aliases

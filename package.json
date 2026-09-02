@@ -10,6 +10,7 @@
     "android/src/main/",
     "android/build.gradle",
     "dist/",
+    "docs/",
     "ios/Sources",
     "NOTICE",
     "Package.swift",
@@ -62,7 +63,6 @@
   "devDependencies": {
     "@capacitor/android": "^8.1.0",
     "@capacitor/core": "^8.1.0",
-    "@capacitor/docgen": "^0.3.1",
     "@capacitor/ios": "^8.1.0",
     "@ionic/eslint-config": "^0.4.0",
     "@ionic/prettier-config": "^4.0.0",
@@ -95,5 +95,8 @@
     "android": {
       "src": "android"
     }
+  },
+  "dependencies": {
+    "@rdlabo/capacitor-docgen": "^0.4.1"
   }
 }
