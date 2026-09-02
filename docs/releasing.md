@@ -24,10 +24,10 @@ This manual bootstrap is the only non-OIDC publish. Do not add its npm credentia
    - **Environment:** leave empty (workflow-level publisher)
 3. Ensure **Allow npm publish** is enabled for that trusted publisher.
 
-The same relationship can be created with npm 11.5.1 or later while authenticated as a package owner:
+The same relationship can be created with the latest npm CLI while authenticated as a package owner. Using `npx` avoids changing the globally installed npm version:
 
 ```bash
-npm trust github @rdlabo/capacitor-local-llm \
+npx npm@latest trust github @rdlabo/capacitor-local-llm \
   --repo rdlabo-dev/capacitor-local-llm \
   --file release.yml \
   --allow-publish
@@ -37,7 +37,7 @@ After setup, only the `Release` workflow (`.github/workflows/release.yml`) can p
 
 ### npm CLI minimum
 
-Release jobs run `npm install -g npm@latest` before publish. Locally, use **npm 11.5.1 or later** (Trusted Publishing and `--provenance` support). Older clients cannot complete OIDC-based publishes.
+Release jobs run `npm install -g npm@latest` before publish. Trusted Publishing requires npm 11.5.1 or later; use the latest npm CLI for `npm trust` management commands. Older clients cannot complete OIDC-based publishes.
 
 ## Release channels
 
