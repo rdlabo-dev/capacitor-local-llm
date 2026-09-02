@@ -58,7 +58,8 @@
     "build": "npm run clean && npm run docgen && tsc && rollup -c rollup.config.mjs",
     "clean": "rimraf ./dist",
     "watch": "tsc --watch",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "release": "np --no-tests --no-publish"
   },
   "devDependencies": {
     "@capacitor/android": "^8.1.0",
@@ -68,17 +69,14 @@
     "@ionic/prettier-config": "^4.0.0",
     "@ionic/swiftlint-config": "^2.0.0",
     "@rdlabo/capacitor-docgen": "^0.4.1",
-    "@semantic-release/changelog": "^6.0.3",
-    "@semantic-release/exec": "^7.1.0",
-    "@semantic-release/git": "^10.0.1",
     "@typescript-eslint/eslint-plugin": "^8.59.1",
     "eslint": "^8.57.1",
     "eslint-plugin-import": "^2.32.0",
+    "np": "^10.2.0",
     "prettier": "^3.8.1",
     "prettier-plugin-java": "^2.8.1",
     "rimraf": "^6.1.3",
     "rollup": "^4.59.0",
-    "semantic-release": "^25.0.3",
     "swiftlint": "^2.0.0",
     "typescript": "~5.9.3"
   },

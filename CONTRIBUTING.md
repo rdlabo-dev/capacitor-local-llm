@@ -9,21 +9,21 @@ This guide provides instructions for contributing to this Capacitor plugin.
 1. Fork and clone the repo.
 1. Install the dependencies.
 
-    ```shell
-    npm install
-    ```
+   ```shell
+   npm install
+   ```
 
 1. Install SwiftLint if you're on macOS.
 
-    ```shell
-    brew install swiftlint
-    ```
+   ```shell
+   brew install swiftlint
+   ```
 
 ### Scripts
 
 #### `npm run build`
 
-Build the plugin web assets and generate plugin API documentation using [`@capacitor/docgen`](https://github.com/ionic-team/capacitor-docgen).
+Build the plugin web assets and generate plugin API documentation using [`@rdlabo/capacitor-docgen`](https://github.com/rdlabo-team/capacitor-docgen).
 
 It will compile the TypeScript code from `src/` into ESM JavaScript in `dist/esm/`. These files are used in apps with bundlers when your plugin is imported.
 
@@ -43,10 +43,10 @@ This template is integrated with ESLint, Prettier, and SwiftLint. Using these to
 
 ## Publishing
 
-There is a `prepublishOnly` hook in `package.json` which prepares the plugin before publishing, so all you need to do is run:
+Maintainers create stable and prerelease tags with:
 
 ```shell
-npm publish
+npm run release
 ```
 
-> **Note**: The [`files`](https://docs.npmjs.com/cli/v7/configuring-npm/package-json#files) array in `package.json` specifies which files get published. If you rename files/directories or add files elsewhere, you may need to update it.
+The tag triggers npm Trusted Publishing through GitHub Actions; do not publish directly or add an `NPM_TOKEN` repository secret. Beta releases are available through the gated `/beta` flow. See the [release guide](docs/releasing.md) for setup, channels, and the one-time bootstrap required for a new npm package name.

@@ -65,6 +65,7 @@ Streaming, cancellation, and warmup: [Chat](docs/chat.md). Image input and gener
 - [Events](docs/events.md) — availability, download, chunk, and generation lifecycle events.
 - [Migration](docs/migration.md) — deprecated v1 APIs and upstream migration.
 - [Error Handling](docs/errors.md) — stable `LocalLLMErrorCode` values.
+- [Releasing](docs/releasing.md) — npm Trusted Publishing, stable/next/beta channels, and maintainer procedures.
 
 Method signatures are in the API section below.
 
