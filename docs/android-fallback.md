@@ -1,3 +1,7 @@
+---
+title: Android fallback model
+---
+
 # Android fallback model
 
 When ML Kit reports Gemini Nano unavailable, configure an explicit LiteRT-LM fallback. Related guides: [Setup](./setup.md), [Availability](./availability.md), [Images](./images.md).

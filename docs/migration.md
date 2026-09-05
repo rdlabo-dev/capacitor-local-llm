@@ -1,3 +1,7 @@
+---
+title: Migration
+---
+
 # Migration
 
 Deprecated v1 compatibility APIs and notes for migrating from Ionic upstream. Related guides: [Availability](./availability.md), [Chat](./chat.md), [Error Handling](./errors.md), [Setup](./setup.md).

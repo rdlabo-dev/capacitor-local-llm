@@ -1,3 +1,7 @@
+---
+title: Events
+---
+
 # Events
 
 Plugin events for availability, download progress, streaming chunks, and generation lifecycle. Related guides: [Availability](./availability.md), [Chat](./chat.md), [Setup](./setup.md), [Error Handling](./errors.md).

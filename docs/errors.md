@@ -1,3 +1,7 @@
+---
+title: Error Handling
+---
+
 # Error Handling
 
 Stable error codes exposed by native Capacitor errors and the web stub. Related guides: [Chat](./chat.md), [Availability](./availability.md), [Images](./images.md), [Migration](./migration.md).

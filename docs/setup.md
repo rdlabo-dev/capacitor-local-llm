@@ -1,3 +1,7 @@
+---
+title: Setup
+---
+
 # Setup
 
 Platform requirements and native project setup for iOS and Android. Related guides: [Android fallback model](./android-fallback.md), [Availability](./availability.md), [Images](./images.md).

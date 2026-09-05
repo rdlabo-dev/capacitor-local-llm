@@ -1,3 +1,7 @@
+---
+title: Chat
+---
+
 # Chat
 
 Chat lifecycle, streaming, cancellation, and warmup. Related guides: [Availability](./availability.md), [Images](./images.md), [Events](./events.md), [Error Handling](./errors.md).
@@ -44,9 +48,11 @@ import { LocalLLM } from '@rdlabo/capacitor-local-llm';
 
 const { id: chatId } = await LocalLLM.createChat();
 
+let streamedText = '';
 const chunkListener = await LocalLLM.addListener('textChunk', (event) => {
   if (event.chatId !== chatId) return;
-  process.stdout.write(event.text); // newly generated text only
+  streamedText += event.text;
+  console.log(streamedText); // replace with an update to your app's UI
 });
 
 try {

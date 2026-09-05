@@ -1,3 +1,7 @@
+---
+title: Availability and platform behavior
+---
+
 # Availability and platform behavior
 
 How to interpret [`getAvailability()`](../README.md#getavailability) statuses and platform-specific runtime behavior. Related guides: [Setup](./setup.md), [Android fallback model](./android-fallback.md), [Chat](./chat.md), [Images](./images.md), [Events](./events.md).

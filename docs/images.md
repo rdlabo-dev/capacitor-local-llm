@@ -1,3 +1,7 @@
+---
+title: Images
+---
+
 # Images
 
 Image analysis (vision input) and image generation. Related guides: [Setup](./setup.md), [Android fallback model](./android-fallback.md), [Availability](./availability.md), [Chat](./chat.md).
@@ -5,6 +9,10 @@ Image analysis (vision input) and image generation. Related guides: [Setup](./se
 Check [`getImageAnalysisAvailability()`](../README.md#getimageanalysisavailability) separately from text-model [`getAvailability()`](../README.md#getavailability) before supplying images, because text and vision availability can differ.
 
 ## Image analysis
+
+The `images` input and `getImageAnalysisAvailability()` belong to the `2.1.0` API. Match the
+installed package version to the [API reference](../README.md#api); the source guide is not a
+guarantee that these methods are available in an older npm release.
 
 ### iOS
 

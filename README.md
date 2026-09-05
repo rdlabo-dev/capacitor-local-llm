@@ -7,16 +7,18 @@ Run large language models entirely on-device using Apple Intelligence (Foundatio
 
 > **Note:** On-device LLMs require physical hardware. Android emulators are not supported. iOS simulators are supported so long as the host Mac supports Apple Intelligence and has it enabled.
 
-## Support and upstream
-
-Report fork-specific bugs and questions in the [rdlabo-dev issue tracker](https://github.com/rdlabo-dev/capacitor-local-llm/issues), not to Ionic. When a problem is confirmed to originate upstream, the fork maintainers may propose the fix back to Ionic. Before production release, validate streaming, cancellation, availability, and model download on the physical devices your app supports.
-
 ## Install
 
 ```bash
 npm install @rdlabo/capacitor-local-llm
 npx cap sync
 ```
+
+Requires Capacitor 8 or later. Web execution is unsupported; use the native iOS or Android implementation.
+
+This README and the guides describe the checked-out source. When using an npm release, consult
+the documentation at its matching Git tag and check the API's `Since` annotation. In particular,
+APIs marked `2.1.0` must not be assumed to exist in `2.0.0`.
 
 ## Platform summary
 
@@ -43,14 +45,15 @@ const { id: chatId } = await LocalLLM.createChat({
   instructions: 'You are a helpful assistant.',
 });
 
-const { text } = await LocalLLM.generateText({
-  chatId,
-  prompt: 'What is the capital of France?',
-});
-
-console.log(text);
-
-await LocalLLM.deleteChat({ id: chatId });
+try {
+  const { text } = await LocalLLM.generateText({
+    chatId,
+    prompt: 'What is the capital of France?',
+  });
+  console.log(text);
+} finally {
+  await LocalLLM.deleteChat({ id: chatId });
+}
 ```
 
 Streaming, cancellation, and warmup: [Chat](docs/chat.md). Image input and generation: [Images](docs/images.md).
@@ -65,9 +68,18 @@ Streaming, cancellation, and warmup: [Chat](docs/chat.md). Image input and gener
 - [Events](docs/events.md) — availability, download, chunk, and generation lifecycle events.
 - [Migration](docs/migration.md) — deprecated v1 APIs and upstream migration.
 - [Error Handling](docs/errors.md) — stable `LocalLLMErrorCode` values.
-- [Releasing](docs/releasing.md) — npm Trusted Publishing, stable/next/beta channels, and maintainer procedures.
 
 Method signatures are in the API section below.
+
+<!-- rdlabo-docs-omit -->
+
+## Support and maintenance
+
+Report fork-specific bugs and questions in the [rdlabo-dev issue tracker](https://github.com/rdlabo-dev/capacitor-local-llm/issues), not to Ionic. When a problem is confirmed to originate upstream, the fork maintainers may propose the fix back to Ionic. Before production release, validate streaming, cancellation, availability, and model download on the physical devices your app supports.
+
+Maintainers: see [Releasing](docs/releasing.md) for npm Trusted Publishing and release channels.
+
+<!-- /rdlabo-docs-omit -->
 
 ## API
 
