@@ -1,9 +1,6 @@
 # @rdlabo/capacitor-local-llm
 
-> [!IMPORTANT]
-> This project is an independently maintained fork of Ionic's [`@capacitor/local-llm`](https://github.com/ionic-team/capacitor-local-llm), based on upstream version 1.0.0 at commit [`5bceb55`](https://github.com/ionic-team/capacitor-local-llm/commit/5bceb559ed19382efc71df2f918d290ca419d282). It is not an official Ionic or Capacitor package and is not affiliated with or supported by Ionic.
-
-Run large language models entirely on-device using Apple Intelligence (Foundation Models) on iOS and Gemini Nano on Android. Inference runs on-device with no API keys and no prompt or response data leaving the device. On Android, downloading the Gemini Nano model via `downloadModel()` may use the network.
+Generate short on-device text responses in a Capacitor app—no API keys, and prompts/responses stay on the device. iOS uses Apple Intelligence (Foundation Models), Android uses Gemini Nano, and supported desktop Chrome uses the built-in Prompt API. On Android, downloading the Gemini Nano model via `downloadModel()` may use the network.
 
 > **Note:** On-device LLMs require physical hardware. Android emulators are not supported. iOS simulators are supported so long as the host Mac supports Apple Intelligence and has it enabled.
 
@@ -16,10 +13,6 @@ npx cap sync
 
 Requires Capacitor 8 or later. Text generation also works in supported desktop Chrome browsers through the built-in Prompt API. See [Web setup](docs/web.md) for requirements and limitations.
 
-This README and the guides describe the checked-out source. When using an npm release, consult
-the documentation at its matching Git tag and check the API's `Since` annotation. In particular,
-APIs marked `2.1.0` must not be assumed to exist in `2.0.0`.
-
 ## Platform summary
 
 | Platform | Minimum OS              | Notes                                                                                                                                                                  |
@@ -31,7 +24,7 @@ Native project setup (SPM deployment target, `minSdkVersion`, and model download
 
 ## Quick start
 
-After [Install](#install) and [Setup](docs/setup.md), check availability, create a chat, and generate text:
+After [Install](#install) and [Setup](docs/setup.md) (or [Web setup](docs/web.md) in Chrome), check availability, create a chat, and generate text. If status is not `available` (for example `downloadable`), follow [Setup](docs/setup.md) or the Chrome download flow in [Web](docs/web.md) before retrying—do not treat a throw here as a finished quickstart.
 
 ```typescript
 import { LocalLLM } from '@rdlabo/capacitor-local-llm';
@@ -56,7 +49,7 @@ try {
 }
 ```
 
-Streaming, cancellation, and warmup: [Chat](docs/chat.md). Image input and generation: [Images](docs/images.md).
+Success means a response string is logged and `deleteChat` completes. Exact wording is model-dependent. Streaming, cancellation, and warmup: [Chat](docs/chat.md). Image input and generation: [Images](docs/images.md).
 
 ## Documentation
 
@@ -69,7 +62,11 @@ Streaming, cancellation, and warmup: [Chat](docs/chat.md). Image input and gener
 - [Migration](docs/migration.md) — deprecated v1 APIs and upstream migration.
 - [Error Handling](docs/errors.md) — stable `LocalLLMErrorCode` values.
 
-Method signatures are in the API section below.
+Method signatures are in the API section below. For API `Since` notes when upgrading between releases, see [Migration](docs/migration.md) and the API section.
+
+## Provenance
+
+This project is an independently maintained fork of Ionic's [`@capacitor/local-llm`](https://github.com/ionic-team/capacitor-local-llm), based on upstream version 1.0.0 at commit [`5bceb55`](https://github.com/ionic-team/capacitor-local-llm/commit/5bceb559ed19382efc71df2f918d290ca419d282). It is not an official Ionic or Capacitor package and is not affiliated with or supported by Ionic.
 
 <!-- rdlabo-docs-omit -->
 

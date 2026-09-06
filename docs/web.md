@@ -54,3 +54,5 @@ Use the example app's **Prompt** tab in supported Chrome. The separate **Physica
 6. In a browser without the Prompt API, check that availability is `unavailable` and generation reports `LOCAL_LLM_UNSUPPORTED` without crashing the page.
 
 Model wording is nondeterministic. Judge successful inference and lifecycle behavior separately from the exact generated text.
+
+Streaming and cancellation continue in [Chat](./chat.md). Status handling is in [Availability](./availability.md); stable error codes are in [Error Handling](./errors.md).
