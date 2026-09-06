@@ -4,9 +4,9 @@ title: Error Handling
 
 # Error Handling
 
-Stable error codes exposed by native Capacitor errors and the web stub. Related guides: [Chat](./chat.md), [Availability](./availability.md), [Images](./images.md), [Migration](./migration.md).
+Stable error codes exposed by native Capacitor errors and the Web implementation. Related guides: [Chat](./chat.md), [Availability](./availability.md), [Images](./images.md), [Migration](./migration.md).
 
-Native Capacitor errors and the web stub expose a stable string `code` matching `LocalLLMErrorCode`. On web, failures throw `LocalLLMException`, which extends `Error` and sets `code`.
+Native Capacitor errors and the Web implementation expose a stable string `code` matching `LocalLLMErrorCode`. On web, failures throw `LocalLLMException`, which extends `Error` and sets `code`.
 
 ```typescript
 import { LocalLLM, LocalLLMException } from '@rdlabo/capacitor-local-llm';

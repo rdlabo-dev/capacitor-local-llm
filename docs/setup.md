@@ -67,3 +67,7 @@ if (status === 'downloadable') {
 await availabilityListener.remove();
 await progressListener.remove();
 ```
+
+## Web Setup
+
+Supported desktop Chrome browsers run text generation through the built-in Prompt API. See [Web setup and limitations](./web.md). Run `npm run dev` in `example-app` to test on localhost.

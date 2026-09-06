@@ -14,3 +14,5 @@ Plugin events for availability, download progress, streaming chunks, and generat
 | `generationStateChange` | Fired for accepted text generations with `started`, then `completed`, `cancelled`, or `failed`. Terminal error events include a stable `errorCode`.                                                            |
 
 Remove listeners with the returned `PluginListenerHandle.remove()` or `removeAllListeners()`.
+
+On Web, `downloadProgress.progress` comes from Chrome's normalized download progress (0–1); byte counts are omitted. Availability events reflect changes observed during plugin availability checks and session creation/download. Streaming and generation lifecycle events use the same contract as native.

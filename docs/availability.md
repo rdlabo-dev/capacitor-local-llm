@@ -46,3 +46,7 @@ The deprecated `systemAvailability()` and `systemAvailabilityChange` fold detail
 - **Image analysis** backend selection is documented in [Images](./images.md).
 - **On-device models cannot be used while the app is in the background.** Inference requests made while backgrounded will fail.
 - **AICore enforces per-app inference quotas.** Excessive requests can return busy or quota errors from the underlying SDK — consider exponential backoff.
+
+### Web (Chrome)
+
+Text availability maps Chrome's `available`, `downloadable`, `downloading`, and `unavailable` states directly. Missing APIs report `unavailable`. Availability events reflect changes observed by plugin checks and session creation/download, rather than background polling. Image analysis currently reports `unavailable`. See [Web](./web.md) for setup, supported methods, and generation controls.

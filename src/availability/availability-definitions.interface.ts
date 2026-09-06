@@ -7,7 +7,7 @@ import type {
 
 export interface AvailabilityDefinitions {
   /**
-   * Returns detailed text-model availability.
+   * Returns detailed text-model availability. Web feature-detects Chrome's Prompt API; unsupported browsers return `unavailable`.
    *
    * @group Availability
    * @since 2.0.0
@@ -21,7 +21,7 @@ export interface AvailabilityDefinitions {
    * On iOS 27 builds compiled with Xcode 27 / Swift 6.4, returns the text-model `status` plus
    * `backend: 'foundation-models'` and `maxImages: 4`. Builds made with older Xcode report
    * `unavailable` and cannot include iOS 27 vision support. Android reports Gemini Nano prompt
-   * APIs or a configured LiteRT-LM fallback. Web rejects this API.
+   * APIs or a configured LiteRT-LM fallback. Web currently reports `unavailable` for image analysis.
    *
    * @group Availability
    * @since 2.1.0
@@ -31,7 +31,7 @@ export interface AvailabilityDefinitions {
   getImageAnalysisAvailability(): Promise<GetImageAnalysisAvailabilityResult>;
 
   /**
-   * Starts an Android model download.
+   * Starts an Android or Chrome Web model download. On Web, invoke from a user gesture; Chrome manages the model.
    *
    * @group Availability
    * @since 2.0.0
@@ -52,7 +52,7 @@ export interface AvailabilityDefinitions {
   configureFallbackModel(options: ConfigureFallbackModelOptions): Promise<void>;
 
   /**
-   * Warms native model resources.
+   * Warms model resources. Web creates and destroys a temporary text session; `promptPrefix` is iOS-only.
    *
    * @group Availability
    * @since 1.0.0

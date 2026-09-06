@@ -10,7 +10,7 @@ import type {
 
 export interface EventsDefinitions {
   /**
-   * Listens for availability changes.
+   * Listens for availability changes. Web emits changes observed during availability checks and session creation/download.
    *
    * @group Events
    * @since 2.0.0
@@ -33,7 +33,7 @@ export interface EventsDefinitions {
   ): Promise<PluginListenerHandle>;
 
   /**
-   * Listens for Android download progress.
+   * Listens for Android or Chrome Web download progress.
    *
    * @group Events
    * @since 2.0.0

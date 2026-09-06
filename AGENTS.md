@@ -1,8 +1,8 @@
 ## Project Overview
-Capacitor Local LLM is a Capacitor plugin that wraps on-device LLM functionality on iOS and Android.
+Capacitor Local LLM is a Capacitor plugin that wraps on-device LLM functionality on iOS, Android, and supported Chrome desktop browsers.
 - iOS uses Foundation Models (Apple Intelligence) for text LLM (iOS 26+) and Image Playground for image generation (iOS 18.4+). Foundation Models is a new API — avoid assumptions about its behavior; prefer checking Apple docs.
 - Android uses on-device Gemini Nano via the ML Kit packages
-- Web is unsupported — plugin methods should throw a "not implemented" error on Web
+- Web uses Chrome's built-in Prompt API (`LanguageModel`) for text generation. Feature-detect the API; unsupported browsers report unavailable. Image input/generation and Android fallback configuration remain unsupported on Web.
 
 ## Platform Requirements
 - iOS: minimum **18.4**. Image generation works on iOS 18.4+. Text LLM (Foundation Models) requires iOS 26+.
@@ -36,7 +36,7 @@ npm run verify
   android/      - Kotlin source code for native Android functionality
   src/
     definitions.ts  - Public TypeScript interfaces and types (the plugin API contract)
-    web.ts          - Web implementation (unsupported stubs)
+    web.ts          - Chrome Prompt API implementation
     index.ts        - Plugin entry point
   example-app/  - Lightweight Ionic Framework app with simple demos for all plugin features
 ```
@@ -46,7 +46,7 @@ This plugin follows standard Capacitor conventions:
 - Public API is defined in `src/definitions.ts`
 - New methods must be added in **all** of the following places or the build will break:
   1. `src/definitions.ts` — TypeScript interface
-  2. `src/web.ts` — Web stub (throw `unimplemented()`)
+  2. `src/web.ts` — Web implementation (reject unsupported platform features)
   3. iOS Swift plugin class
   4. Android Kotlin plugin class
 - iOS methods that require iOS 26+ must be wrapped in `#available(iOS 26.0, *)` guards and throw `LocalLLMError.unsupported` in the `else` branch. Do not assume a feature is available just because the deployment target allows the code to compile.
@@ -69,7 +69,7 @@ ionic cap sync
 - New functionality should be added for all platforms unless unavailable due to platform limitations. Platform-exclusive features must be noted in documentation.
 
 ## Testing
-- There are no automated unit tests — verification is done manually via the example app on physical devices.
+- Run `npm test` for public type checks and Web adapter regression tests. Verify actual model output manually via the example app.
 - When making changes, test on both iOS and Android physical devices before considering work complete.
 
 ## Things to Avoid

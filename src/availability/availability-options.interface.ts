@@ -121,6 +121,7 @@ export interface ConfigureFallbackModelOptions {
 
 /**
  * Warmup options. Android performs global model warmup; iOS can prewarm a chat.
+ * Web creates and releases a temporary session, optionally using a chat's context.
  *
  * @since 1.0.0
  * @example
@@ -128,7 +129,7 @@ export interface ConfigureFallbackModelOptions {
  */
 export interface WarmupOptions {
   /**
-   * Explicit chat identifier to prewarm on iOS.
+   * Explicit chat identifier to prewarm on iOS or use as context for Web warmup.
    *
    * @since 2.0.0
    * @example

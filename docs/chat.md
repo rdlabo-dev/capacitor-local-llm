@@ -20,13 +20,13 @@ if (status !== 'available') {
 
 const { id: chatId } = await LocalLLM.createChat({
   instructions: 'You are a helpful assistant.',
-  history: { maxMessages: 20, maxCharacters: 12000 }, // both platforms; iOS trims the Foundation Models transcript
+  history: { maxMessages: 20, maxCharacters: 12000 }, // all platforms; iOS trims the Foundation Models transcript
 });
 
 const { text } = await LocalLLM.generateText({
   chatId,
   prompt: 'What is the capital of France?',
-  options: { temperature: 0.2, maxOutputTokens: 256 },
+  // Native only: options: { temperature: 0.2, maxOutputTokens: 256 },
 });
 
 const followUp = await LocalLLM.generateText({
@@ -83,13 +83,13 @@ const streamPromise = LocalLLM.streamText({ chatId, prompt: 'Write a long essay.
 try {
   await streamPromise;
 } catch (err) {
-  // LOCAL_LLM_GENERATION_CANCELLED on both platforms when cancellation is observed
+  // LOCAL_LLM_GENERATION_CANCELLED on all platforms when cancellation is observed
 } finally {
   await stateListener.remove();
 }
 ```
 
-`generationStateChange` is emitted for both `generateText()` and `streamText()`. It reports `started` as soon as the native layer accepts a generation, before the first text chunk, followed by one terminal state: `completed`, `cancelled`, or `failed`. Use its `generationId` for deterministic cancellation. `deleteChat()` also cancels any active generation for that chat.
+`generationStateChange` is emitted for both `generateText()` and `streamText()`. It reports `started` as soon as the plugin accepts a generation, before the first text chunk, followed by one terminal state: `completed`, `cancelled`, or `failed`. Use its `generationId` for deterministic cancellation. `deleteChat()` also cancels any active generation for that chat.
 
 ## Reduce first-response latency with warmup
 
@@ -101,5 +101,6 @@ const { id: chatId } = await LocalLLM.createChat({
 });
 
 // iOS: prewarm this chat. Android: global model warmup (chatId ignored).
+// Web: create and release a temporary session using this chat (promptPrefix ignored).
 await LocalLLM.warmup({ chatId, promptPrefix: 'You are a customer support agent for Acme Corp.' });
 ```
