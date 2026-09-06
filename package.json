@@ -1,6 +1,6 @@
 {
   "name": "@rdlabo/capacitor-local-llm",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "A Capacitor plugin for on-device text generation and chat on iOS, Android, and supported Chrome browsers, with native image capabilities.",
   "main": "dist/plugin.cjs.js",
   "module": "dist/esm/index.js",
