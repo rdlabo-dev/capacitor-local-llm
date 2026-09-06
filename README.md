@@ -466,6 +466,8 @@ prompt(options: PromptOptions) => Promise<PromptResponse>
 endSession(options: EndSessionOptions) => Promise<void>
 ```
 
+Ends a legacy session. Already-ended or unknown session identifiers succeed without effect.
+
 | Param         | Type                                                            |
 | ------------- | --------------------------------------------------------------- |
 | **`options`** | <code><a href="#endsessionoptions">EndSessionOptions</a></code> |

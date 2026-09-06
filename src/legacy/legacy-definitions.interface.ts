@@ -37,6 +37,8 @@ export interface LegacyDefinitions {
   prompt(options: PromptOptions): Promise<PromptResponse>;
 
   /**
+   * Ends a legacy session. Already-ended or unknown session identifiers succeed without effect.
+   *
    * @deprecated Use `deleteChat()`.
    *
    * @group Deprecated

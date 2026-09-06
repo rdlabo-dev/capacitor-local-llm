@@ -361,7 +361,7 @@ export class LocalLLMWeb extends WebPlugin implements LocalLLMPlugin {
 
   async endSession(options: EndSessionOptions): Promise<void> {
     const id = this.legacyChats.get(options.sessionId);
-    if (!id) throw new LocalLLMException('LOCAL_LLM_CHAT_NOT_FOUND', 'Session not found.');
+    if (!id) return;
     await this.deleteChat({ id });
   }
 }

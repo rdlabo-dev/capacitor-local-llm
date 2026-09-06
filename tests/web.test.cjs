@@ -221,7 +221,7 @@ test('legacy sessions retain history, one-shot calls do not, and warmup releases
   assert.equal(sessions.at(-1).options.initialPrompts[0].content, 'Keep');
   await plugin.warmup({ sessionId: 'legacy' });
   await plugin.endSession({ sessionId: 'legacy' });
-  await rejectsCode(plugin.endSession({ sessionId: 'legacy' }), 'LOCAL_LLM_CHAT_NOT_FOUND');
+  await plugin.endSession({ sessionId: 'legacy' });
   await plugin.prompt({ prompt: 'Isolated' });
   await plugin.prompt({ prompt: 'Isolated again' });
   assert.deepEqual(sessions.at(-1).options.initialPrompts, []);
@@ -285,4 +285,19 @@ test('throwing observers cannot corrupt generation, skip other observers, or lea
   await plugin.generateText({ chatId: id, prompt: 'Next' });
   assert.deepEqual(states, ['started', 'completed', 'started', 'completed']);
   await plugin.deleteChat({ id });
+});
+
+test('legacy cleanup is idempotent without creating a model session or retaining old history', async () => {
+  const { sessions } = fakeModel();
+  const plugin = new LocalLLMWeb();
+  await plugin.endSession({ sessionId: 'never-created' });
+  assert.equal(sessions.length, 0);
+  await plugin.prompt({ sessionId: 'legacy', instructions: 'Old instructions', prompt: 'Old turn' });
+  await Promise.all([plugin.endSession({ sessionId: 'legacy' }), plugin.endSession({ sessionId: 'legacy' })]);
+  await plugin.endSession({ sessionId: 'legacy' });
+  assert.equal(sessions.length, 1);
+  await plugin.prompt({ sessionId: 'legacy', prompt: 'Fresh turn' });
+  assert.deepEqual(sessions.at(-1).options.initialPrompts, []);
+  await plugin.endSession({ sessionId: 'legacy' });
+  assert.ok(sessions.every((session) => session.destroyed));
 });
