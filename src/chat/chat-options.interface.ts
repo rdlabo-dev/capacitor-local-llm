@@ -1,7 +1,7 @@
 import type { ImageInput } from '../image/image-input.interface';
 
 /**
- * Cross-platform text generation controls. Unsupported values are rejected, not clamped.
+ * Cross-platform text generation controls. Unsupported values are rejected, not clamped. Chrome Web requires these controls to be omitted.
  *
  * @since 2.0.0
  * @example
@@ -35,7 +35,7 @@ export interface GenerationOptions {
 }
 
 /**
- * Chat history limits. Both native implementations retain instructions and discard oldest whole turns.
+ * Chat history limits. All implementations retain instructions and discard oldest whole turns.
  *
  * @since 2.0.0
  * @example
@@ -77,7 +77,7 @@ export interface CreateChatOptions {
    */
   instructions?: string;
   /**
-   * History limits applied by both native implementations.
+   * History limits applied on iOS, Android, and Web.
    *
    * @since 2.0.0
    * @example

@@ -1,7 +1,7 @@
 {
   "name": "@rdlabo/capacitor-local-llm",
   "version": "2.1.0",
-  "description": "A Capacitor plugin for running on-device LLMs, with support for text generation, image generation, and session management on iOS and Android.",
+  "description": "A Capacitor plugin for on-device text generation and chat on iOS, Android, and supported Chrome browsers, with native image capabilities.",
   "main": "dist/plugin.cjs.js",
   "module": "dist/esm/index.js",
   "types": "dist/esm/index.d.ts",
@@ -45,8 +45,8 @@
     "verify": "npm run verify:ios && npm run verify:android && npm run verify:web",
     "verify:ios": "swift build --build-tests --sdk \"$(xcrun --sdk iphoneos --show-sdk-path)\" --triple arm64-apple-ios18.4 && npm run test:ios",
     "verify:android": "cd android && ./gradlew clean build test && cd ..",
-    "verify:web": "npm run build",
-    "test": "npm run test:types",
+    "verify:web": "npm run build && npm test",
+    "test": "npm run test:types && npm run test:web",
     "test:ios": "xcodebuild test -scheme CapacitorLocalLlm -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=latest'",
     "test:types": "tsc -p tests/tsconfig.json --noEmit",
     "lint": "npm run eslint && npm run prettier -- --check && npm run swiftlint -- lint --no-cache",
@@ -59,7 +59,8 @@
     "clean": "rimraf ./dist",
     "watch": "tsc --watch",
     "prepublishOnly": "npm run build",
-    "release": "np --no-tests --no-publish"
+    "release": "np --no-tests --no-publish",
+    "test:web": "tsc -p tests/tsconfig.web.json && node --test tests/web.test.cjs"
   },
   "devDependencies": {
     "@capacitor/android": "^8.1.0",
@@ -70,6 +71,7 @@
     "@ionic/swiftlint-config": "^2.0.0",
     "@rdlabo/capacitor-docgen": "^0.4.1",
     "@typescript-eslint/eslint-plugin": "^8.59.1",
+    "@typescript-eslint/parser": "^8.59.1",
     "eslint": "^8.57.1",
     "eslint-plugin-import": "^2.32.0",
     "np": "^10.2.0",
@@ -85,7 +87,14 @@
   },
   "prettier": "@ionic/prettier-config",
   "eslintConfig": {
-    "extends": "@ionic/eslint-config/recommended"
+    "extends": "@ionic/eslint-config/recommended",
+    "parser": "@typescript-eslint/parser",
+    "parserOptions": {
+      "project": [
+        "./tsconfig.json",
+        "./tests/tsconfig.json"
+      ]
+    }
   },
   "capacitor": {
     "ios": {

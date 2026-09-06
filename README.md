@@ -14,7 +14,7 @@ npm install @rdlabo/capacitor-local-llm
 npx cap sync
 ```
 
-Requires Capacitor 8 or later. Web execution is unsupported; use the native iOS or Android implementation.
+Requires Capacitor 8 or later. Text generation also works in supported desktop Chrome browsers through the built-in Prompt API. See [Web setup](docs/web.md) for requirements and limitations.
 
 This README and the guides describe the checked-out source. When using an npm release, consult
 the documentation at its matching Git tag and check the API's `Since` annotation. In particular,
@@ -122,7 +122,7 @@ Public on-device LLM plugin contract.
 getAvailability() => Promise<GetAvailabilityResult>
 ```
 
-Returns detailed text-model availability.
+Returns detailed text-model availability. Web feature-detects Chrome's Prompt API; unsupported browsers return `unavailable`.
 
 **Returns:** <code>Promise&lt;<a href="#getavailabilityresult">GetAvailabilityResult</a>&gt;</code>
 
@@ -141,7 +141,7 @@ Returns image-analysis availability and the native backend that would handle vis
 On iOS 27 builds compiled with Xcode 27 / Swift 6.4, returns the text-model `status` plus
 `backend: 'foundation-models'` and `maxImages: 4`. Builds made with older Xcode report
 `unavailable` and cannot include iOS 27 vision support. Android reports Gemini Nano prompt
-APIs or a configured LiteRT-LM fallback. Web rejects this API.
+APIs or a configured LiteRT-LM fallback. Web currently reports `unavailable` for image analysis.
 
 **Returns:** <code>Promise&lt;<a href="#getimageanalysisavailabilityresult">GetImageAnalysisAvailabilityResult</a>&gt;</code>
 
@@ -156,7 +156,7 @@ APIs or a configured LiteRT-LM fallback. Web rejects this API.
 downloadModel() => Promise<void>
 ```
 
-Starts an Android model download.
+Starts an Android or Chrome Web model download. On Web, invoke from a user gesture; Chrome manages the model.
 
 **Since:** 2.0.0
 
@@ -187,7 +187,7 @@ Configuring a model performs local file I/O and may take significant time. iOS a
 warmup(options?: WarmupOptions | undefined) => Promise<void>
 ```
 
-Warms native model resources.
+Warms model resources. Web creates and destroys a temporary text session; `promptPrefix` is iOS-only.
 
 | Param         | Type                                                    |
 | ------------- | ------------------------------------------------------- |
@@ -295,7 +295,7 @@ Cancels an in-flight generation.
 addListener(eventName: 'availabilityChange', listenerFunc: AvailabilityChangeListener) => Promise<PluginListenerHandle>
 ```
 
-Listens for availability changes.
+Listens for availability changes. Web emits changes observed during availability checks and session creation/download.
 
 | Param              | Type                                                                              |
 | ------------------ | --------------------------------------------------------------------------------- |
@@ -333,7 +333,7 @@ addListener(eventName: 'systemAvailabilityChange', listenerFunc: SystemAvailabil
 addListener(eventName: 'downloadProgress', listenerFunc: DownloadProgressListener) => Promise<PluginListenerHandle>
 ```
 
-Listens for Android download progress.
+Listens for Android or Chrome Web download progress.
 
 | Param              | Type                                                                          |
 | ------------------ | ----------------------------------------------------------------------------- |
@@ -466,6 +466,8 @@ prompt(options: PromptOptions) => Promise<PromptResponse>
 endSession(options: EndSessionOptions) => Promise<void>
 ```
 
+Ends a legacy session. Already-ended or unknown session identifiers succeed without effect.
+
 | Param         | Type                                                            |
 | ------------- | --------------------------------------------------------------- |
 | **`options`** | <code><a href="#endsessionoptions">EndSessionOptions</a></code> |
@@ -514,12 +516,13 @@ The model must already exist as an app asset or a readable app-managed file. iOS
 #### WarmupOptions
 
 Warmup options. Android performs global model warmup; iOS can prewarm a chat.
+Web creates and releases a temporary session, optionally using a chat's context.
 
-| Prop               | Type                | Description                                       | Since |
-| ------------------ | ------------------- | ------------------------------------------------- | ----- |
-| **`chatId`**       | <code>string</code> | Explicit chat identifier to prewarm on iOS.       | 2.0.0 |
-| **`sessionId`**    | <code>string</code> |                                                   | 1.0.0 |
-| **`promptPrefix`** | <code>string</code> | Optional prompt prefix used by Foundation Models. | 1.0.0 |
+| Prop               | Type                | Description                                                                  | Since |
+| ------------------ | ------------------- | ---------------------------------------------------------------------------- | ----- |
+| **`chatId`**       | <code>string</code> | Explicit chat identifier to prewarm on iOS or use as context for Web warmup. | 2.0.0 |
+| **`sessionId`**    | <code>string</code> |                                                                              | 1.0.0 |
+| **`promptPrefix`** | <code>string</code> | Optional prompt prefix used by Foundation Models.                            | 1.0.0 |
 
 
 #### CreateChatResult
@@ -535,15 +538,15 @@ Result containing the plugin-owned chat identifier.
 
 Options for creating an owned chat.
 
-| Prop               | Type                                                              | Description                                            | Since |
-| ------------------ | ----------------------------------------------------------------- | ------------------------------------------------------ | ----- |
-| **`instructions`** | <code>string</code>                                               | Persistent system instructions for this chat.          | 2.0.0 |
-| **`history`**      | <code><a href="#chathistoryoptions">ChatHistoryOptions</a></code> | History limits applied by both native implementations. | 2.0.0 |
+| Prop               | Type                                                              | Description                                      | Since |
+| ------------------ | ----------------------------------------------------------------- | ------------------------------------------------ | ----- |
+| **`instructions`** | <code>string</code>                                               | Persistent system instructions for this chat.    | 2.0.0 |
+| **`history`**      | <code><a href="#chathistoryoptions">ChatHistoryOptions</a></code> | History limits applied on iOS, Android, and Web. | 2.0.0 |
 
 
 #### ChatHistoryOptions
 
-Chat history limits. Both native implementations retain instructions and discard oldest whole turns.
+Chat history limits. All implementations retain instructions and discard oldest whole turns.
 
 | Prop                | Type                | Description                                             | Since |
 | ------------------- | ------------------- | ------------------------------------------------------- | ----- |
@@ -605,7 +608,7 @@ Base64-encoded image input.
 
 #### GenerationOptions
 
-Cross-platform text generation controls. Unsupported values are rejected, not clamped.
+Cross-platform text generation controls. Unsupported values are rejected, not clamped. Chrome Web requires these controls to be omitted.
 
 | Prop                  | Type                | Description                            | Since |
 | --------------------- | ------------------- | -------------------------------------- | ----- |
