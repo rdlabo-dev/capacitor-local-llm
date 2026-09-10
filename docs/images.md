@@ -4,14 +4,14 @@ title: Images
 
 # Images
 
-Image analysis (vision input) and image generation. Related guides: [Setup](./setup.md), [Android fallback model](./android-fallback.md), [Availability](./availability.md), [Chat](./chat.md).
+Image analysis (vision input) and image generation. Related guides: [Setup](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/setup), [Android fallback model](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/android-fallback), [Availability](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/availability), [Chat](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/chat).
 
-Check [`getImageAnalysisAvailability()`](../README.md#getimageanalysisavailability) separately from text-model [`getAvailability()`](../README.md#getavailability) before supplying images, because text and vision availability can differ.
+Check [`getImageAnalysisAvailability()`](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/api#getimageanalysisavailability) separately from text-model [`getAvailability()`](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/api#getavailability) before supplying images, because text and vision availability can differ.
 
 ## Image analysis
 
 The `images` input and `getImageAnalysisAvailability()` belong to the `2.1.0` API. Match the
-installed package version to the [API reference](../README.md#api); the source guide is not a
+installed package version to the [API reference](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/api); the source guide is not a
 guarantee that these methods are available in an older npm release.
 
 ### iOS
@@ -22,7 +22,7 @@ Image analysis uses native Foundation Models `Attachment` on iOS 27+ when the pl
 
 Image analysis selects a native backend explicitly. `getImageAnalysisAvailability()` reports `ml-kit-prompt` when ML Kit Prompt's common feature status is `available`, because that SDK status does not expose a separate vision-capability flag. It reports `litert-lm` when a configured vision fallback is ready.
 
-Android image input formats, ML Kit pixel budgets, the experimental multi-image path, `imagePaths` compatibility, and LiteRT-LM vision fallback configuration are documented in [Android fallback model](./android-fallback.md).
+Android image input formats, ML Kit pixel budgets, the experimental multi-image path, `imagePaths` compatibility, and LiteRT-LM vision fallback configuration are documented in [Android fallback model](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/android-fallback).
 
 ## Image generation (iOS only)
 

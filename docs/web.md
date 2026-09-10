@@ -55,4 +55,4 @@ Use the example app's **Prompt** tab in supported Chrome. The separate **Physica
 
 Model wording is nondeterministic. Judge successful inference and lifecycle behavior separately from the exact generated text.
 
-Streaming and cancellation continue in [Chat](./chat.md). Status handling is in [Availability](./availability.md); stable error codes are in [Error Handling](./errors.md).
+Streaming and cancellation continue in [Chat](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/chat). Status handling is in [Availability](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/availability); stable error codes are in [Error Handling](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/errors).

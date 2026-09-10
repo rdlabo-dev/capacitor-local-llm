@@ -4,7 +4,7 @@ title: Events
 
 # Events
 
-Plugin events for availability, download progress, streaming chunks, and generation lifecycle. Related guides: [Availability](./availability.md), [Chat](./chat.md), [Setup](./setup.md), [Error Handling](./errors.md).
+Plugin events for availability, download progress, streaming chunks, and generation lifecycle. Related guides: [Availability](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/availability), [Chat](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/chat), [Setup](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/setup), [Error Handling](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/errors).
 
 | Event                   | Description                                                                                                                                                                                                    |
 | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

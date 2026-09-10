@@ -4,7 +4,7 @@ title: Chat
 
 # Chat
 
-Chat lifecycle, streaming, cancellation, and warmup. Related guides: [Availability](./availability.md), [Images](./images.md), [Events](./events.md), [Error Handling](./errors.md).
+Chat lifecycle, streaming, cancellation, and warmup. Related guides: [Availability](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/availability), [Images](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/images), [Events](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/events), [Error Handling](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/errors).
 
 ## Chat lifecycle
 

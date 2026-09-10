@@ -4,7 +4,7 @@ title: Error Handling
 
 # Error Handling
 
-Stable error codes exposed by native Capacitor errors and the Web implementation. Related guides: [Chat](./chat.md), [Availability](./availability.md), [Images](./images.md), [Migration](./migration.md).
+Stable error codes exposed by native Capacitor errors and the Web implementation. Related guides: [Chat](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/chat), [Availability](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/availability), [Images](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/images), [Migration](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/migration).
 
 Native Capacitor errors and the Web implementation expose a stable string `code` matching `LocalLLMErrorCode`. On web, failures throw `LocalLLMException`, which extends `Error` and sets `code`.
 

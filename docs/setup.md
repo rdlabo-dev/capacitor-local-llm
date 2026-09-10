@@ -4,7 +4,7 @@ title: Setup
 
 # Setup
 
-Platform requirements and native project setup for iOS and Android. Related guides: [Android fallback model](./android-fallback.md), [Availability](./availability.md), [Images](./images.md).
+Platform requirements and native project setup for iOS and Android. Related guides: [Android fallback model](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/android-fallback), [Availability](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/availability), [Images](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/images).
 
 ## Platform Requirements
 
@@ -19,11 +19,11 @@ CocoaPods users need no additional configuration. Foundation Models and Image Pl
 
 For Capacitor projects using Swift Package Manager, the current Capacitor CLI generates `CapApp-SPM/Package.swift` with an iOS 18.0 deployment target and does not preserve the required minor version. After every `npx cap sync ios`, change its platform declaration to `platforms: [.iOS("18.4")]`. The included example app automates this with `npm run cap:sync`; see [`example-app/scripts/sync-capacitor.mjs`](https://github.com/rdlabo-dev/capacitor-local-llm/blob/main/example-app/scripts/sync-capacitor.mjs) for the small, fail-fast wrapper.
 
-Call [`getAvailability()`](../README.md#getavailability) at runtime to check whether the text model is ready before creating chats or generating text. Check [`getImageAnalysisAvailability()`](../README.md#getimageanalysisavailability) separately before supplying images because text and vision availability can differ. See [Images](./images.md) for image analysis details.
+Call [`getAvailability()`](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/api#getavailability) at runtime to check whether the text model is ready before creating chats or generating text. Check [`getImageAnalysisAvailability()`](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/api#getimageanalysisavailability) separately before supplying images because text and vision availability can differ. See [Images](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/images) for image analysis details.
 
 On iOS versions below 26, only `getAvailability()` reports `'device-not-eligible'` for the text LLM. Text and chat APIs such as `createChat()`, `deleteChat()`, `generateText()`, and `streamText()` reject with `LOCAL_LLM_UNSUPPORTED`. Image generation via `generateImage()` is available on iOS 18.4+.
 
-[`downloadModel()`](../README.md#downloadmodel) is not available on iOS — the OS manages the model. Use `getAvailability()` or the `availabilityChange` event to observe readiness.
+[`downloadModel()`](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/api#downloadmodel) is not available on iOS — the OS manages the model. Use `getAvailability()` or the `availabilityChange` event to observe readiness.
 
 ## Android Setup
 
@@ -37,11 +37,11 @@ ext {
 
 Gemini Nano is distributed via Google Play Services and must be downloaded to the device before use. The model is not bundled with your app.
 
-When Gemini Nano is unavailable, apps may configure an explicit LiteRT-LM fallback. See [Android fallback model](./android-fallback.md).
+When Gemini Nano is unavailable, apps may configure an explicit LiteRT-LM fallback. See [Android fallback model](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/android-fallback).
 
 ### Check availability and download
 
-Call [`getAvailability()`](../README.md#getavailability) to inspect the current state. If the status is `downloadable`, start the download with [`downloadModel()`](../README.md#downloadmodel) and listen for `downloadProgress` and/or `availabilityChange` until the status becomes `available`.
+Call [`getAvailability()`](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/api#getavailability) to inspect the current state. If the status is `downloadable`, start the download with [`downloadModel()`](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/api#downloadmodel) and listen for `downloadProgress` and/or `availabilityChange` until the status becomes `available`.
 
 ```typescript
 import { LocalLLM } from '@rdlabo/capacitor-local-llm';
@@ -70,4 +70,4 @@ await progressListener.remove();
 
 ## Web Setup
 
-Supported desktop Chrome browsers run text generation through the built-in Prompt API. See [Web setup and limitations](./web.md). Run `npm run dev` in `example-app` to test on localhost.
+Supported desktop Chrome browsers run text generation through the built-in Prompt API. See [Web setup and limitations](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/web). Run `npm run dev` in `example-app` to test on localhost.

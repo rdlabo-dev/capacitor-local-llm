@@ -4,7 +4,7 @@ title: Migration
 
 # Migration
 
-Deprecated v1 compatibility APIs and notes for migrating from Ionic upstream. Related guides: [Availability](./availability.md), [Chat](./chat.md), [Error Handling](./errors.md), [Setup](./setup.md).
+Deprecated v1 compatibility APIs and notes for migrating from Ionic upstream. Related guides: [Availability](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/availability), [Chat](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/chat), [Error Handling](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/errors), [Setup](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/setup).
 
 ## Deprecated compatibility APIs
 
@@ -19,7 +19,7 @@ v1 APIs remain available but are deprecated in favor of explicit chat and availa
 | `addListener('systemAvailabilityChange', …)` | `addListener('availabilityChange', …)`             |
 | `warmup({ sessionId })`                      | `warmup({ chatId })`                               |
 
-`systemAvailability()` and `systemAvailabilityChange` return the legacy four-value `LLMAvailability` contract (`available`, `unavailable`, `notready`, `downloadable`) by folding the detailed `Availability` statuses described in [Availability](./availability.md).
+`systemAvailability()` and `systemAvailabilityChange` return the legacy four-value `LLMAvailability` contract (`available`, `unavailable`, `notready`, `downloadable`) by folding the detailed `Availability` statuses described in [Availability](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/availability).
 
 `prompt()` without `sessionId` still performs a one-shot generation for backward compatibility.
 

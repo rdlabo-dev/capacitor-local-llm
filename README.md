@@ -11,7 +11,7 @@ npm install @rdlabo/capacitor-local-llm
 npx cap sync
 ```
 
-Requires Capacitor 8 or later. Text generation also works in supported desktop Chrome browsers through the built-in Prompt API. See [Web setup](docs/web.md) for requirements and limitations.
+Requires Capacitor 8 or later. Text generation also works in supported desktop Chrome browsers through the built-in Prompt API. See [Web setup](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/web) for requirements and limitations.
 
 ## Platform summary
 
@@ -20,11 +20,11 @@ Requires Capacitor 8 or later. Text generation also works in supported desktop C
 | iOS      | **18.4**                | Image generation requires iOS 18.4+. Text LLM requires iOS 26+. Image analysis uses Foundation Models `Attachment` on iOS 27+ when compiled with Xcode 27 / Swift 6.4. |
 | Android  | **API 29 (Android 10)** | Gemini Nano via ML Kit requires a compatible physical device (e.g. Pixel 9+).                                                                                          |
 
-Native project setup (SPM deployment target, `minSdkVersion`, and model download) is in [Setup](docs/setup.md).
+Native project setup (SPM deployment target, `minSdkVersion`, and model download) is in [Setup](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/setup).
 
 ## Quick start
 
-After [Install](#install) and [Setup](docs/setup.md) (or [Web setup](docs/web.md) in Chrome), check availability, create a chat, and generate text. If status is not `available` (for example `downloadable`), follow [Setup](docs/setup.md) or the Chrome download flow in [Web](docs/web.md) before retrying—do not treat a throw here as a finished quickstart.
+After [Install](#install) and [Setup](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/setup) (or [Web setup](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/web) in Chrome), check availability, create a chat, and generate text. If status is not `available` (for example `downloadable`), follow [Setup](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/setup) or the Chrome download flow in [Web](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/web) before retrying—do not treat a throw here as a finished quickstart.
 
 ```typescript
 import { LocalLLM } from '@rdlabo/capacitor-local-llm';
@@ -49,20 +49,20 @@ try {
 }
 ```
 
-Success means a response string is logged and `deleteChat` completes. Exact wording is model-dependent. Streaming, cancellation, and warmup: [Chat](docs/chat.md). Image input and generation: [Images](docs/images.md).
+Success means a response string is logged and `deleteChat` completes. Exact wording is model-dependent. Streaming, cancellation, and warmup: [Chat](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/chat). Image input and generation: [Images](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/images).
 
 ## Documentation
 
-- [Setup](docs/setup.md) — platform requirements, iOS SPM target, Android `minSdkVersion`, and Gemini Nano download.
-- [Android fallback model](docs/android-fallback.md) — LiteRT-LM when Gemini Nano is unavailable.
-- [Availability](docs/availability.md) — status values and platform behavior.
-- [Chat](docs/chat.md) — chat lifecycle, streaming, cancellation, and warmup.
-- [Images](docs/images.md) — image analysis (iOS / Android) and image generation (iOS).
-- [Events](docs/events.md) — availability, download, chunk, and generation lifecycle events.
-- [Migration](docs/migration.md) — deprecated v1 APIs and upstream migration.
-- [Error Handling](docs/errors.md) — stable `LocalLLMErrorCode` values.
+- [Setup](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/setup) — platform requirements, iOS SPM target, Android `minSdkVersion`, and Gemini Nano download.
+- [Android fallback model](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/android-fallback) — LiteRT-LM when Gemini Nano is unavailable.
+- [Availability](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/availability) — status values and platform behavior.
+- [Chat](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/chat) — chat lifecycle, streaming, cancellation, and warmup.
+- [Images](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/images) — image analysis (iOS / Android) and image generation (iOS).
+- [Events](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/events) — availability, download, chunk, and generation lifecycle events.
+- [Migration](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/migration) — deprecated v1 APIs and upstream migration.
+- [Error Handling](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/errors) — stable `LocalLLMErrorCode` values.
 
-Method signatures are in the API section below. For API `Since` notes when upgrading between releases, see [Migration](docs/migration.md) and the API section.
+Method signatures are in the API section below. For API `Since` notes when upgrading between releases, see [Migration](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/migration) and the API section.
 
 ## Provenance
 

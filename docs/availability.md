@@ -4,11 +4,11 @@ title: Availability and platform behavior
 
 # Availability and platform behavior
 
-How to interpret [`getAvailability()`](../README.md#getavailability) statuses and platform-specific runtime behavior. Related guides: [Setup](./setup.md), [Android fallback model](./android-fallback.md), [Chat](./chat.md), [Images](./images.md), [Events](./events.md).
+How to interpret [`getAvailability()`](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/api#getavailability) statuses and platform-specific runtime behavior. Related guides: [Setup](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/setup), [Android fallback model](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/android-fallback), [Chat](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/chat), [Images](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/images), [Events](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/events).
 
 ## Availability
 
-[`getAvailability()`](../README.md#getavailability) returns a semantic `status` value:
+[`getAvailability()`](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/api#getavailability) returns a semantic `status` value:
 
 | Status                | Meaning                                                                                                                                                                                   |
 | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -32,7 +32,7 @@ The deprecated `systemAvailability()` and `systemAvailabilityChange` fold detail
 - **Chats use the native Foundation Models transcript.** Conversation state lives in `LanguageModelSession`. Before generation, the plugin also applies a conservative character budget against the model's native `contextSize`, including instructions, the current prompt, and output headroom. When any limit is exceeded, it drops the oldest complete prompt/response turns, preserves instructions, and recreates the session.
 - **`warmup({ chatId, promptPrefix })` prewarms a specific chat** created with `createChat()`.
 - **`cancelGeneration()` cancels the in-flight `Task`** for the chat. The `streamText()` / `generateText()` promise rejects with `LOCAL_LLM_GENERATION_CANCELLED`; any text already streamed via `textChunk` remains in your UI.
-- **Image analysis and image generation** details are in [Images](./images.md).
+- **Image analysis and image generation** details are in [Images](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/images).
 
 ### Android
 
@@ -42,11 +42,11 @@ The deprecated `systemAvailability()` and `systemAvailabilityChange` fold detail
 - **Unsupported `GenerationOptions` values are rejected** with `LOCAL_LLM_INVALID_OPTIONS`, not silently clamped. `maxOutputTokens` must be within `1..min(device token limit, 4096)`; when omitted, the plugin default is **256**.
 - **Native model operations run serially.** The plugin mutex protects Gemini Nano and LiteRT-LM generation, fallback configuration, warmup, download, and teardown, so concurrent generations in different chats are queued.
 - **Not all API 29+ devices support Gemini Nano.** The device must have a compatible on-device AI stack. [More information here](https://developers.google.com/ml-kit/genai#device-support).
-- **Apps may explicitly configure a LiteRT-LM fallback** when Gemini Nano is unavailable. Once initialization completes, `getAvailability()` reports `available`. See [Android fallback model](./android-fallback.md).
-- **Image analysis** backend selection is documented in [Images](./images.md).
+- **Apps may explicitly configure a LiteRT-LM fallback** when Gemini Nano is unavailable. Once initialization completes, `getAvailability()` reports `available`. See [Android fallback model](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/android-fallback).
+- **Image analysis** backend selection is documented in [Images](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/images).
 - **On-device models cannot be used while the app is in the background.** Inference requests made while backgrounded will fail.
 - **AICore enforces per-app inference quotas.** Excessive requests can return busy or quota errors from the underlying SDK — consider exponential backoff.
 
 ### Web (Chrome)
 
-Text availability maps Chrome's `available`, `downloadable`, `downloading`, and `unavailable` states directly. Missing APIs report `unavailable`. Availability events reflect changes observed by plugin checks and session creation/download, rather than background polling. Image analysis currently reports `unavailable`. See [Web](./web.md) for setup, supported methods, and generation controls.
+Text availability maps Chrome's `available`, `downloadable`, `downloading`, and `unavailable` states directly. Missing APIs report `unavailable`. Availability events reflect changes observed by plugin checks and session creation/download, rather than background polling. Image analysis currently reports `unavailable`. See [Web](https://docs.rdlabo.dev/projects/capacitor-local-llm/docs/web) for setup, supported methods, and generation controls.
